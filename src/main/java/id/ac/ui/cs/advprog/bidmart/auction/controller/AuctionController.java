@@ -1,7 +1,6 @@
 package id.ac.ui.cs.advprog.bidmart.auction.controller;
 
-import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
-import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,20 +10,23 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auction")
 public class AuctionController {
     @Autowired
-    private AuctionRepository auctionRepository;
+    private AuctionService auctionService;
 
     @GetMapping("/list")
     public String listAuctions(Model model) {
-        model.addAttribute("auctions", auctionRepository.findAll());
+        model.addAttribute("auctions", auctionService.findAll());
         return "auction-list";
     }
 
     @PostMapping("/add")
     public String addAuction(@RequestParam String title, @RequestParam Double initialBid) {
-        Auction auction = new Auction();
-        auction.setTitle(title);
-        auction.setCurrentBid(initialBid);
-        auctionRepository.save(auction);
+        auctionService.create(title, initialBid);
+        return "redirect:/auction/list";
+    }
+
+    @PostMapping("/activate/{id}")
+    public String activateAuction(@PathVariable Long id) {
+        auctionService.activate(id);
         return "redirect:/auction/list";
     }
 }
