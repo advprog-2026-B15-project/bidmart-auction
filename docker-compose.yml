@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: bidmart-auction-db
+    environment:
+      POSTGRES_DB: bidmart_auction
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: amimir
+    ports:
+      - "5432:5432"
