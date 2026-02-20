@@ -3,6 +3,7 @@ plugins {
     jacoco
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.sonarqube") version "5.1.0.4882"
 }
 
 group = "id.ac.ui.cs.advprog.bidmart"
@@ -55,4 +56,13 @@ tasks.jacocoTestReport {
 
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "advprog-2026-B15-project_bidmart-auction")
+        property("sonar.organization", "advprog-2026-b15-project")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+    }
 }
