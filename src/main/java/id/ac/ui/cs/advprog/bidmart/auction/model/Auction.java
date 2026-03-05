@@ -1,19 +1,68 @@
 package id.ac.ui.cs.advprog.bidmart.auction.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
-@Getter @Setter
+@Table(name = "auctions")
 public class Auction {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(updatable = false, nullable = false, length = 36)
+    private String id;
+
+    @Column(nullable = false, length = 255)
     private String title;
-    private Double currentBid;
+
+    @Column(name = "current_bid", nullable = false)
+    private Long currentBid;
 
     @Enumerated(EnumType.STRING)
-    private AuctionStatus status = AuctionStatus.DRAFT;
+    @Column(nullable = false, length = 30)
+    private AuctionStatus status;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (status == null) {
+            status = AuctionStatus.DRAFT;
+        }
+        if (currentBid == null) {
+            currentBid = 0L; // Harga bid awal default ke 0
+        }
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
 }
