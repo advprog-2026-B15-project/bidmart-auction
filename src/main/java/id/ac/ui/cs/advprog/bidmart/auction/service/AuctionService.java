@@ -3,7 +3,9 @@ package id.ac.ui.cs.advprog.bidmart.auction.service;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
+import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +16,7 @@ import java.util.List;
 public class AuctionService {
 
     private final AuctionRepository auctionRepository;
+    private final BidRepository bidRepository;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -55,5 +58,39 @@ public class AuctionService {
 
         auction.setStatus(AuctionStatus.ACTIVE); // DRAFT -> ACTIVE
         return auctionRepository.save(auction);
+    }
+
+    public Bid placeBid(String auctionId, String bidderUsername, Long amount) {
+        Auction auction = findById(auctionId);
+
+        if (auction.getStatus() != AuctionStatus.ACTIVE) {
+            throw new IllegalStateException("Lelang tidak sedang aktif");
+        }
+
+        Long minimumValidBid = auction.getCurrentBid() == 0
+                ? auction.getStartingPrice()
+                : auction.getCurrentBid() + auction.getMinimumIncrement();
+
+        if (amount < minimumValidBid) {
+            throw new IllegalArgumentException(
+                    "Bid minimal harus " + minimumValidBid
+            );
+        }
+
+        Bid bid = new Bid();
+        bid.setAuction(auction);
+        bid.setBidderUsername(bidderUsername);
+        bid.setAmount(amount);
+        bidRepository.save(bid);
+
+        auction.setCurrentBid(amount);
+        auctionRepository.save(auction);
+
+        return bid;
+    }
+
+    public List<Bid> getBidHistory(String auctionId) {
+        findById(auctionId);
+        return bidRepository.findBidHistory(auctionId);
     }
 }
