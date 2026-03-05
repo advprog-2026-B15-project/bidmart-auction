@@ -10,6 +10,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -32,33 +34,38 @@ class AuctionServiceTest {
     @BeforeEach
     void setUp() {
         expensiveVinyl = new Auction();
-        expensiveVinyl.setId(101L);
+        expensiveVinyl.setId("auction-101");
         expensiveVinyl.setTitle("Signed Arctic Monkeys - AM Vinyl (Limited Edition)");
-        expensiveVinyl.setCurrentBid(15000.0);
+        expensiveVinyl.setListingId("listing-001");
+        expensiveVinyl.setSellerId("seller-001");
+        expensiveVinyl.setStartingPrice(15000L);
+        expensiveVinyl.setMinimumIncrement(1000L);
+        expensiveVinyl.setCurrentBid(0L);
         expensiveVinyl.setStatus(AuctionStatus.DRAFT);
+        expensiveVinyl.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7));
     }
 
     @Test
-    void testCreateHighEndAuction() {
+    void testCreateAuction() {
         when(auctionRepository.save(any(Auction.class))).thenReturn(expensiveVinyl);
 
-        Auction created = auctionService.create("Signed Arctic Monkeys - AM Vinyl (Limited Edition)", 15000.0);
+        Auction created = auctionService.create(expensiveVinyl);
 
         assertNotNull(created);
         assertEquals("Signed Arctic Monkeys - AM Vinyl (Limited Edition)", created.getTitle());
-        assertEquals(15000.0, created.getCurrentBid());
         assertEquals(AuctionStatus.DRAFT, created.getStatus());
         verify(auctionRepository, times(1)).save(any(Auction.class));
     }
 
     @Test
-    void testFindAllExclusiveAuctions() {
+    void testFindAll() {
         Auction eeaaoProp = new Auction();
         eeaaoProp.setTitle("Original Googly Eye Rock from EEAAO");
-        eeaaoProp.setCurrentBid(25000.0);
+        eeaaoProp.setStartingPrice(25000L);
+        eeaaoProp.setCurrentBid(0L);
 
-        List<Auction> luxuryList = Arrays.asList(expensiveVinyl, eeaaoProp);
-        when(auctionRepository.findAll()).thenReturn(luxuryList);
+        List<Auction> auctionList = Arrays.asList(expensiveVinyl, eeaaoProp);
+        when(auctionRepository.findAll()).thenReturn(auctionList);
 
         List<Auction> result = auctionService.findAll();
 
@@ -68,28 +75,40 @@ class AuctionServiceTest {
     }
 
     @Test
-    void testActivateLuxuryAuctionSuccess() {
-        when(auctionRepository.findById(101L)).thenReturn(Optional.of(expensiveVinyl));
+    void testActivateAuctionSuccess() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(expensiveVinyl));
         when(auctionRepository.save(any(Auction.class))).thenReturn(expensiveVinyl);
 
-        Auction activated = auctionService.activate(101L);
+        Auction activated = auctionService.activate("auction-101");
 
         assertNotNull(activated);
         assertEquals(AuctionStatus.ACTIVE, activated.getStatus());
-        verify(auctionRepository, times(1)).findById(101L);
+        verify(auctionRepository, times(1)).findById("auction-101");
         verify(auctionRepository, times(1)).save(expensiveVinyl);
     }
 
     @Test
-    void testActivateInvalidAuctionId() {
-        when(auctionRepository.findById(999L)).thenReturn(Optional.empty());
+    void testActivateAuctionNotFound() {
+        when(auctionRepository.findById("invalid-id")).thenReturn(Optional.empty());
 
         Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            auctionService.activate(999L);
+            auctionService.activate("invalid-id");
         });
 
-        assertEquals("Invalid auction Id:999", exception.getMessage());
-        verify(auctionRepository, times(1)).findById(999L);
+        assertEquals("Auction tidak ditemukan", exception.getMessage());
+        verify(auctionRepository, times(1)).findById("invalid-id");
+        verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void testActivateAuctionNotDraft() {
+        expensiveVinyl.setStatus(AuctionStatus.ACTIVE);
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(expensiveVinyl));
+
+        assertThrows(IllegalStateException.class, () -> {
+            auctionService.activate("auction-101");
+        });
+
         verify(auctionRepository, never()).save(any());
     }
 }
