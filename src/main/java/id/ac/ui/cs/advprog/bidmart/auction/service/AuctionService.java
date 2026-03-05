@@ -1,33 +1,96 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
+import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
+import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AuctionService {
-    @Autowired
-    private AuctionRepository auctionRepository;
+
+    private final AuctionRepository auctionRepository;
+    private final BidRepository bidRepository;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
     }
 
-    public Auction create(String title, Double initialBid) {
+    public Auction findById(String id) {
+        return auctionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Auction tidak ditemukan"));
+    }
+
+    public Auction create(CreateAuctionRequest req, String sellerId) {
+        if (req.getReservePrice() != null
+                && req.getReservePrice() <= req.getStartingPrice()) {
+            throw new IllegalArgumentException("Reserve price harus lebih besar dari starting price");
+        }
+
         Auction auction = new Auction();
-        auction.setTitle(title);
-        auction.setCurrentBid(initialBid);
-        auction.setStatus(AuctionStatus.DRAFT);
+        auction.setListingId(req.getListingId());
+        auction.setSellerId(sellerId);
+        auction.setTitle(req.getTitle());
+        auction.setStartingPrice(req.getStartingPrice());
+        auction.setReservePrice(req.getReservePrice());
+        auction.setMinimumIncrement(req.getMinimumIncrement());
+        auction.setEndTime(req.getEndTime());
+
         return auctionRepository.save(auction);
     }
 
-    public Auction activate(Long id) {
-        Auction auction = auctionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid auction Id:" + id));
-        auction.setStatus(AuctionStatus.ACTIVE);
+    public Auction activate(String auctionId, String sellerId) {
+        Auction auction = findById(auctionId);
+
+        if (!auction.getSellerId().equals(sellerId)) {
+            throw new IllegalStateException("Hanya seller pemilik yang bisa mengaktifkan lelang");
+        }
+
+        if (auction.getStatus() != AuctionStatus.DRAFT) {
+            throw new IllegalStateException("Hanya auction berstatus DRAFT yang bisa diaktifkan");
+        }
+
+        auction.setStatus(AuctionStatus.ACTIVE); // DRAFT -> ACTIVE
         return auctionRepository.save(auction);
+    }
+
+    public Bid placeBid(String auctionId, String bidderUsername, Long amount) {
+        Auction auction = findById(auctionId);
+
+        if (auction.getStatus() != AuctionStatus.ACTIVE) {
+            throw new IllegalStateException("Lelang tidak sedang aktif");
+        }
+
+        Long minimumValidBid = auction.getCurrentBid() == 0
+                ? auction.getStartingPrice()
+                : auction.getCurrentBid() + auction.getMinimumIncrement();
+
+        if (amount < minimumValidBid) {
+            throw new IllegalArgumentException(
+                    "Bid minimal harus " + minimumValidBid
+            );
+        }
+
+        Bid bid = new Bid();
+        bid.setAuction(auction);
+        bid.setBidderUsername(bidderUsername);
+        bid.setAmount(amount);
+        bidRepository.save(bid);
+
+        auction.setCurrentBid(amount);
+        auctionRepository.save(auction);
+
+        return bid;
+    }
+
+    public List<Bid> getBidHistory(String auctionId) {
+        findById(auctionId);
+        return bidRepository.findBidHistory(auctionId);
     }
 }

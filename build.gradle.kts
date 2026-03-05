@@ -1,6 +1,7 @@
 plugins {
     java
     jacoco
+    checkstyle
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.sonarqube") version "5.1.0.4882"
@@ -31,6 +32,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
@@ -65,4 +68,10 @@ sonar {
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
     }
+}
+
+checkstyle {
+    toolVersion = "10.18.2"
+    configFile = file("config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = false
 }
