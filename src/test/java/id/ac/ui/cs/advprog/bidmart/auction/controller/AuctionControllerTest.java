@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
+import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -73,8 +74,6 @@ class AuctionControllerTest {
         verify(auctionService, times(1)).findAll();
     }
 
-    // ===== GET BY ID =====
-
     @Test
     void testFindByIdSuccess() throws Exception {
         when(auctionService.findById("auction-101")).thenReturn(auction);
@@ -94,15 +93,13 @@ class AuctionControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // ===== CREATE =====
-
     @Test
     void testCreateAuctionSuccess() throws Exception {
         when(auctionService.create(any(CreateAuctionRequest.class), eq("seller-001")))
                 .thenReturn(auction);
 
         mockMvc.perform(post("/api/auctions")
-                        .header("X-Seller-Id", "seller-001")
+                        .header("X-User-Id", "seller-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -113,7 +110,7 @@ class AuctionControllerTest {
     @Test
     void testCreateAuctionMissingBody() throws Exception {
         mockMvc.perform(post("/api/auctions")
-                        .header("X-Seller-Id", "seller-001"))
+                        .header("X-User-Id", "seller-001"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -131,13 +128,11 @@ class AuctionControllerTest {
         request.setStartingPrice(-1L); // Min violation
 
         mockMvc.perform(post("/api/auctions")
-                        .header("X-Seller-Id", "seller-001")
+                        .header("X-User-Id", "seller-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
-
-    // ===== ACTIVATE =====
 
     @Test
     void testActivateAuctionSuccess() throws Exception {
@@ -145,7 +140,7 @@ class AuctionControllerTest {
         when(auctionService.activate("auction-101", "seller-001")).thenReturn(auction);
 
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
-                        .header("X-Seller-Id", "seller-001"))
+                        .header("X-User-Id", "seller-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
     }
@@ -156,7 +151,7 @@ class AuctionControllerTest {
                 .thenThrow(new IllegalStateException("Hanya seller pemilik yang bisa mengaktifkan lelang"));
 
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
-                        .header("X-Seller-Id", "seller-999"))
+                        .header("X-User-Id", "seller-999"))
                 .andExpect(status().isForbidden());
     }
 
@@ -166,7 +161,89 @@ class AuctionControllerTest {
                 .thenThrow(new IllegalStateException("Hanya auction berstatus DRAFT yang bisa diaktifkan"));
 
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
-                        .header("X-Seller-Id", "seller-001"))
+                        .header("X-User-Id", "seller-001"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ===== PLACE BID =====
+
+    @Test
+    void testPlaceBidSuccess() throws Exception {
+        Bid bid = new Bid();
+        bid.setId("bid-001");
+        bid.setAuction(auction);
+        bid.setBidderUsername("buyer-001");
+        bid.setAmount(500000L);
+
+        when(auctionService.placeBid("auction-101", "buyer-001", 500000L)).thenReturn(bid);
+
+        mockMvc.perform(post("/api/auctions/auction-101/bids")
+                        .header("X-User-Id", "buyer-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 500000}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.amount").value(500000));
+    }
+
+    @Test
+    void testPlaceBidAuctionNotActive() throws Exception {
+        when(auctionService.placeBid("auction-101", "buyer-001", 500000L))
+                .thenThrow(new IllegalStateException("Lelang tidak sedang aktif"));
+
+        mockMvc.perform(post("/api/auctions/auction-101/bids")
+                        .header("X-User-Id", "buyer-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 500000}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testPlaceBidAmountTooLow() throws Exception {
+        when(auctionService.placeBid("auction-101", "buyer-001", 100L))
+                .thenThrow(new IllegalArgumentException("Bid minimal harus 500000"));
+
+        mockMvc.perform(post("/api/auctions/auction-101/bids")
+                        .header("X-User-Id", "buyer-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 100}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testPlaceBidMissingBody() throws Exception {
+        mockMvc.perform(post("/api/auctions/auction-101/bids")
+                        .header("X-User-Id", "buyer-001"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testGetBidHistorySuccess() throws Exception {
+        Bid bid1 = new Bid();
+        bid1.setId("bid-001");
+        bid1.setAuction(auction);
+        bid1.setBidderUsername("buyer-001");
+        bid1.setAmount(600000L);
+
+        Bid bid2 = new Bid();
+        bid2.setId("bid-002");
+        bid2.setAuction(auction);
+        bid2.setBidderUsername("buyer-002");
+        bid2.setAmount(500000L);
+
+        when(auctionService.getBidHistory("auction-101")).thenReturn(Arrays.asList(bid1, bid2));
+
+        mockMvc.perform(get("/api/auctions/auction-101/bids"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].amount").value(600000))
+                .andExpect(jsonPath("$[1].amount").value(500000));
+    }
+
+    @Test
+    void testGetBidHistoryAuctionNotFound() throws Exception {
+        when(auctionService.getBidHistory("invalid-id"))
+                .thenThrow(new IllegalArgumentException("Auction tidak ditemukan"));
+
+        mockMvc.perform(get("/api/auctions/invalid-id/bids"))
+                .andExpect(status().isNotFound());
     }
 }
