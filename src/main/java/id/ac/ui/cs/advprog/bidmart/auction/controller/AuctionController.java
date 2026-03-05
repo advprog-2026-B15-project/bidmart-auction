@@ -1,7 +1,10 @@
 package id.ac.ui.cs.advprog.bidmart.auction.controller;
 
 import id.ac.ui.cs.advprog.bidmart.auction.dto.AuctionResponse;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.PlaceBidRequest;
+import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +38,7 @@ public class AuctionController {
     @PostMapping
     public ResponseEntity<AuctionResponse> create(
             @Valid @RequestBody CreateAuctionRequest req,
-            @RequestHeader("X-Seller-Id") String sellerId) {
+            @RequestHeader("X-User-Id") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.create(req, sellerId));
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
     }
@@ -43,7 +46,7 @@ public class AuctionController {
     @PatchMapping("/{id}/activate")
     public ResponseEntity<AuctionResponse> activate(
             @PathVariable String id,
-            @RequestHeader("X-Seller-Id") String sellerId) {
+            @RequestHeader("X-User-Id") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.activate(id, sellerId));
         return ResponseEntity.ok(res);
     }
@@ -59,5 +62,23 @@ public class AuctionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
+    @PostMapping("/{id}/bids")
+    public ResponseEntity<BidResponse> placeBid(
+            @PathVariable String id,
+            @Valid @RequestBody PlaceBidRequest req,
+            @RequestHeader("X-User-Id") String bidderUsername) {
+        Bid bid = auctionService.placeBid(id, bidderUsername, req.getAmount());
+        return ResponseEntity.status(HttpStatus.CREATED).body(BidResponse.from(bid));
+    }
+
+    @GetMapping("/{id}/bids")
+    public ResponseEntity<List<BidResponse>> getBidHistory(@PathVariable String id) {
+        List<BidResponse> bids = auctionService.getBidHistory(id)
+                .stream()
+                .map(BidResponse::from)
+                .toList();
+        return ResponseEntity.ok(bids);
     }
 }
