@@ -3,7 +3,7 @@ name: Deploy to AWS EC2
 on:
   push:
     branches:
-      - main
+      - staging
 
 jobs:
   build-and-deploy:
@@ -50,5 +50,5 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker compose pull
-            docker compose up -d
+            sudo docker-compose pull
+            sudo docker-compose up -d
