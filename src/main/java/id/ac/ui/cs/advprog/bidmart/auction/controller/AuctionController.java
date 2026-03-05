@@ -47,4 +47,17 @@ public class AuctionController {
         AuctionResponse res = AuctionResponse.from(auctionService.activate(id, sellerId));
         return ResponseEntity.ok(res);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleNotFound(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<String> handleBadState(IllegalStateException e) {
+        if (e.getMessage().contains("pemilik")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
 }
