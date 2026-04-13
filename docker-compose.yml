@@ -10,6 +10,13 @@ services:
     ports:
       - "5432:5432"
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: bidmart-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
   app:
     image: kurrorro/bidmart-auction:latest
     container_name: bidmart-auction-app
