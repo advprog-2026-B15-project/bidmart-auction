@@ -11,12 +11,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/auctions")
 @RequiredArgsConstructor
+@Tag(name = "Auction", description = "API for Auction Management")
 public class AuctionController {
 
     private final AuctionService auctionService;
@@ -58,13 +61,14 @@ public class AuctionController {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<String> handleBadState(IllegalStateException e) {
-        if (e.getMessage().contains("pemilik")) {
+        if (e.getMessage().toLowerCase().contains("owner")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
     @PostMapping("/{id}/bids")
+    @Operation(summary = "Place a new bid on an auction", description = "Submit a bid for a specific auction. Validates the amount and extends the auction time if placed within the last 2 minutes (Anti-Sniping).")
     public ResponseEntity<BidResponse> placeBid(
             @PathVariable String id,
             @Valid @RequestBody PlaceBidRequest req,
