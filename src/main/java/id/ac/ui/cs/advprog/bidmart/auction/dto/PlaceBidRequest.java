@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 public class PlaceBidRequest {
 
-    @NotNull(message = "Amount tidak boleh kosong")
-    @Min(value = 1, message = "Amount harus lebih dari 0")
+    @NotNull(message = "Amount cannot be null")
+    @Min(value = 1, message = "Amount must be strictly greater than 0")
     private Long amount;
 }

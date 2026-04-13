@@ -13,24 +13,24 @@ import java.time.OffsetDateTime;
 @Setter
 public class CreateAuctionRequest {
 
-    @NotBlank(message = "Listing ID tidak boleh kosong")
+    @NotBlank(message = "Listing ID cannot be empty")
     private String listingId;
 
-    @NotBlank(message = "Title tidak boleh kosong")
+    @NotBlank(message = "Title cannot be empty")
     private String title;
 
-    @NotNull(message = "Starting price tidak boleh kosong")
-    @Min(value = 1, message = "Starting price harus lebih dari 0")
+    @NotNull(message = "Starting price cannot be null")
+    @Min(value = 1, message = "Starting price must be strictly greater than 0")
     private Long startingPrice;
 
-    @Min(value = 1, message = "Reserve price harus lebih dari 0")
+    @Min(value = 1, message = "Reserve price must be strictly greater than 0")
     private Long reservePrice;
 
-    @NotNull(message = "Minimum increment tidak boleh kosong")
-    @Min(value = 1, message = "Minimum increment harus lebih dari 0")
+    @NotNull(message = "Minimum increment cannot be null")
+    @Min(value = 1, message = "Minimum increment must be strictly greater than 0")
     private Long minimumIncrement;
 
-    @NotNull(message = "End time tidak boleh kosong")
-    @Future(message = "End time harus di masa depan")
+    @NotNull(message = "End time cannot be null")
+    @Future(message = "End time must be in the future")
     private OffsetDateTime endTime;
 }

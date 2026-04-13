@@ -6,10 +6,12 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.time.OffsetDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +19,7 @@ public class AuctionService {
 
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
+    private final List<BidValidationStrategy> validationStrategies;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -24,13 +27,13 @@ public class AuctionService {
 
     public Auction findById(String id) {
         return auctionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Auction tidak ditemukan"));
+                .orElseThrow(() -> new IllegalArgumentException("Auction not found"));
     }
 
     public Auction create(CreateAuctionRequest req, String sellerId) {
         if (req.getReservePrice() != null
                 && req.getReservePrice() <= req.getStartingPrice()) {
-            throw new IllegalArgumentException("Reserve price harus lebih besar dari starting price");
+            throw new IllegalArgumentException("Reserve price must be greater than starting price");
         }
 
         Auction auction = new Auction();
@@ -49,11 +52,11 @@ public class AuctionService {
         Auction auction = findById(auctionId);
 
         if (!auction.getSellerId().equals(sellerId)) {
-            throw new IllegalStateException("Hanya seller pemilik yang bisa mengaktifkan lelang");
+            throw new IllegalStateException("Only the owner can activate this auction");
         }
 
         if (auction.getStatus() != AuctionStatus.DRAFT) {
-            throw new IllegalStateException("Hanya auction berstatus DRAFT yang bisa diaktifkan");
+            throw new IllegalStateException("Only DRAFT auctions can be activated");
         }
 
         auction.setStatus(AuctionStatus.ACTIVE); // DRAFT -> ACTIVE
@@ -63,20 +66,20 @@ public class AuctionService {
     public Bid placeBid(String auctionId, String bidderUsername, Long amount) {
         Auction auction = findById(auctionId);
 
-        if (auction.getStatus() != AuctionStatus.ACTIVE) {
-            throw new IllegalStateException("Lelang tidak sedang aktif");
+        for (BidValidationStrategy strategy : validationStrategies) {
+            strategy.validate(auction, amount);
         }
 
-        Long minimumValidBid = auction.getCurrentBid() == 0
-                ? auction.getStartingPrice()
-                : auction.getCurrentBid() + auction.getMinimumIncrement();
-
-        if (amount < minimumValidBid) {
-            throw new IllegalArgumentException(
-                    "Bid minimal harus " + minimumValidBid
-            );
+        // anti-sniping
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
+            auction.setEndTime(auction.getEndTime().plusMinutes(2));
+            if (auction.getStatus() == AuctionStatus.ACTIVE) {
+                auction.setStatus(AuctionStatus.EXTENDED);
+            }
         }
 
+        // simpan state
         Bid bid = new Bid();
         bid.setAuction(auction);
         bid.setBidderUsername(bidderUsername);
