@@ -72,8 +72,8 @@ public class AuctionController {
     public ResponseEntity<BidResponse> placeBid(
             @PathVariable String id,
             @Valid @RequestBody PlaceBidRequest req,
-            @RequestHeader("X-User-Id") String bidderUsername) {
-        Bid bid = auctionService.placeBid(id, bidderUsername, req.getAmount());
+            @RequestHeader("X-User-Id") String bidderId) {
+        Bid bid = auctionService.placeBid(id, bidderId, req.getAmount());
         return ResponseEntity.status(HttpStatus.CREATED).body(BidResponse.from(bid));
     }
 

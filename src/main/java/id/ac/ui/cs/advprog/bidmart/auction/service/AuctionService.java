@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class AuctionService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final List<BidValidationStrategy> validationStrategies;
+    private final HoldBalancePort holdBalancePort;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -63,12 +65,15 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
-    public Bid placeBid(String auctionId, String bidderUsername, Long amount) {
+    public Bid placeBid(String auctionId, String bidderId, Long amount) {
         Auction auction = findById(auctionId);
 
         for (BidValidationStrategy strategy : validationStrategies) {
             strategy.validate(auction, amount);
         }
+
+        // tahan reservasi saldo dompet via integrasi REST api
+        holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
         // anti-sniping
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -82,7 +87,7 @@ public class AuctionService {
         // simpan state
         Bid bid = new Bid();
         bid.setAuction(auction);
-        bid.setBidderUsername(bidderUsername);
+        bid.setBidderId(bidderId);
         bid.setAmount(amount);
         bidRepository.save(bid);
 
