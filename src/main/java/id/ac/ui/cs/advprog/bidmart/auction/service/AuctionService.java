@@ -76,6 +76,12 @@ public class AuctionService {
             strategy.validate(auction, amount);
         }
 
+        String previousBidderId = null;
+        List<Bid> history = bidRepository.findBidHistory(auctionId);
+        if (!history.isEmpty()) {
+            previousBidderId = history.get(0).getBidderId();
+        }
+
         // tahan reservasi saldo dompet via integrasi REST api
         holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
@@ -109,6 +115,7 @@ public class AuctionService {
                         .auctionId(auction.getId())
                         .listingId(auction.getListingId())
                         .bidderId(bidderId)
+                        .previousBidderId(previousBidderId)
                         .amount(amount)
                         .build())
                 .build();
