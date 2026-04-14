@@ -7,6 +7,8 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class AuctionService {
     private final BidRepository bidRepository;
     private final List<BidValidationStrategy> validationStrategies;
     private final HoldBalancePort holdBalancePort;
+    private final AuctionEventPort auctionEventPort;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -93,6 +96,21 @@ public class AuctionService {
 
         auction.setCurrentBid(amount);
         auctionRepository.save(auction);
+
+        BidPlacedEvent event = BidPlacedEvent.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .eventType("BidPlaced")
+                .eventVersion(1)
+                .occurredAt(now)
+                .source("bidmart-auction")
+                .payload(BidPlacedEvent.Payload.builder()
+                        .bidId(bid.getId())
+                        .auctionId(auction.getId())
+                        .bidderId(bidderId)
+                        .amount(amount)
+                        .build())
+                .build();
+        auctionEventPort.publishBidPlaced(event); // publish event
 
         return bid;
     }
