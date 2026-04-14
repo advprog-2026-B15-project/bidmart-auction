@@ -12,5 +12,10 @@ public class StatusValidationStrategy implements BidValidationStrategy {
         if (!ALLOWED_STATUSES.contains(auction.getStatus())) {
             throw new IllegalStateException("Cannot place bid on auction with status: " + auction.getStatus());
         }
+
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        if (auction.getEndTime() != null && now.isAfter(auction.getEndTime())) {
+            throw new IllegalStateException("Cannot place bid on expired auction. Time ended at: " + auction.getEndTime());
+        }
     }
 }
