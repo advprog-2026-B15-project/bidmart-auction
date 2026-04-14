@@ -8,9 +8,10 @@ public class AmountValidationStrategy implements BidValidationStrategy {
     public void validate(Auction auction, Long bidAmount) {
         Long minimumRequired;
 
-        if (auction.getCurrentBid() != null && auction.getCurrentBid() > 0) {
+        if (auction.getCurrentPrice() != null && auction.getCurrentPrice() > 0) {
             Long increment = auction.getMinimumIncrement() != null ? auction.getMinimumIncrement() : 1L;
-            minimumRequired = auction.getCurrentBid() + increment;
+            // Berlaku minimal bid jika sudah ada tawaran
+            minimumRequired = auction.getCurrentPrice() + increment;
         } else {
             minimumRequired = auction.getStartingPrice();
         }

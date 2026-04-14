@@ -16,7 +16,7 @@ public class AuctionResponse {
     private Long startingPrice;
     private Long reservePrice;
     private Long minimumIncrement;
-    private Long currentBid;
+    private Long currentPrice;
     private AuctionStatus status;
     private OffsetDateTime endTime;
     private OffsetDateTime createdAt;
@@ -31,7 +31,7 @@ public class AuctionResponse {
         res.startingPrice = auction.getStartingPrice();
         res.reservePrice = auction.getReservePrice();
         res.minimumIncrement = auction.getMinimumIncrement();
-        res.currentBid = auction.getCurrentBid();
+        res.currentPrice = auction.getCurrentPrice();
         res.status = auction.getStatus();
         res.endTime = auction.getEndTime();
         res.createdAt = auction.getCreatedAt();

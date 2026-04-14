@@ -40,8 +40,8 @@ public class Auction {
     @Column(name = "minimum_increment", nullable = false)
     private Long minimumIncrement;
 
-    @Column(name = "current_bid", nullable = false)
-    private Long currentBid;
+    @Column(name = "current_price", nullable = false)
+    private Long currentPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -68,8 +68,8 @@ public class Auction {
         if (status == null) {
             status = AuctionStatus.DRAFT;
         }
-        if (currentBid == null) {
-            currentBid = 0L;
+        if (currentPrice == null) {
+            currentPrice = 0L;
         }
         if (createdAt == null) {
             createdAt = now;

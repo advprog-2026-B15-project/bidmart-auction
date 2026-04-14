@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.time.OffsetDateTime;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +33,7 @@ public class AuctionService {
 
     public Auction findById(String id) {
         return auctionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Auction not found"));
+                .orElseThrow(() -> new NoSuchElementException("Auction not found"));
     }
 
     public Auction create(CreateAuctionRequest req, String sellerId) {
@@ -94,7 +95,7 @@ public class AuctionService {
         bid.setAmount(amount);
         bidRepository.save(bid);
 
-        auction.setCurrentBid(amount);
+        auction.setCurrentPrice(amount);
         auctionRepository.save(auction);
 
         BidPlacedEvent event = BidPlacedEvent.builder()
