@@ -29,6 +29,7 @@ public class BidPlacedEvent {
     public static class Payload {
         private String bidId;
         private String auctionId;
+        private String listingId;
         private String bidderId;
         private Long amount;
     }

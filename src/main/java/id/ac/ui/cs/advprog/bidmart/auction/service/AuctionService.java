@@ -107,6 +107,7 @@ public class AuctionService {
                 .payload(BidPlacedEvent.Payload.builder()
                         .bidId(bid.getId())
                         .auctionId(auction.getId())
+                        .listingId(auction.getListingId())
                         .bidderId(bidderId)
                         .amount(amount)
                         .build())
