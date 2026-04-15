@@ -10,11 +10,20 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/auctions")
@@ -54,9 +63,14 @@ public class AuctionController {
         return ResponseEntity.ok(res);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleNotFound(IllegalArgumentException e) {
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<String> handleNotFound(NoSuchElementException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleBadRequest(IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -64,16 +78,25 @@ public class AuctionController {
         if (e.getMessage().toLowerCase().contains("owner")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
+        // TODO: Konfirmasi dengan PJ Wallet terkait bentuk final response error code-nya
+        if (e.getMessage().contains("403")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+        if (e.getMessage().contains("500")) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
     @PostMapping("/{id}/bids")
-    @Operation(summary = "Place a new bid on an auction", description = "Submit a bid for a specific auction. Validates the amount and extends the auction time if placed within the last 2 minutes (Anti-Sniping).")
+    @Operation(summary = "Place a new bid on an auction", 
+        description = "Submit a bid for a specific auction. Validates the amount " +
+        "and extends the auction time if placed within the last 2 minutes (Anti-Sniping).")
     public ResponseEntity<BidResponse> placeBid(
             @PathVariable String id,
             @Valid @RequestBody PlaceBidRequest req,
-            @RequestHeader("X-User-Id") String bidderUsername) {
-        Bid bid = auctionService.placeBid(id, bidderUsername, req.getAmount());
+            @RequestHeader("X-User-Id") String bidderId) {
+        Bid bid = auctionService.placeBid(id, bidderId, req.getAmount());
         return ResponseEntity.status(HttpStatus.CREATED).body(BidResponse.from(bid));
     }
 

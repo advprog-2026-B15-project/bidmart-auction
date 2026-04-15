@@ -32,8 +32,8 @@ public class Bid {
     @JoinColumn(name = "auction_id", nullable = false)
     private Auction auction;
 
-    @Column(name = "bidder_username", nullable = false, length = 100)
-    private String bidderUsername;
+    @Column(name = "bidder_id", nullable = false, length = 100)
+    private String bidderId;
 
     @Column(nullable = false)
     private Long amount;

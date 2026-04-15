@@ -6,12 +6,17 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +25,8 @@ public class AuctionService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final List<BidValidationStrategy> validationStrategies;
+    private final HoldBalancePort holdBalancePort;
+    private final AuctionEventPort auctionEventPort;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -27,7 +34,7 @@ public class AuctionService {
 
     public Auction findById(String id) {
         return auctionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Auction not found"));
+                .orElseThrow(() -> new NoSuchElementException("Auction not found"));
     }
 
     public Auction create(CreateAuctionRequest req, String sellerId) {
@@ -63,12 +70,21 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
-    public Bid placeBid(String auctionId, String bidderUsername, Long amount) {
+    public Bid placeBid(String auctionId, String bidderId, Long amount) {
         Auction auction = findById(auctionId);
 
         for (BidValidationStrategy strategy : validationStrategies) {
             strategy.validate(auction, amount);
         }
+
+        String previousBidderId = null;
+        List<Bid> history = bidRepository.findBidHistory(auctionId);
+        if (!history.isEmpty()) {
+            previousBidderId = history.get(0).getBidderId();
+        }
+
+        // tahan reservasi saldo dompet via integrasi REST api
+        holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
         // anti-sniping
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -82,12 +98,29 @@ public class AuctionService {
         // simpan state
         Bid bid = new Bid();
         bid.setAuction(auction);
-        bid.setBidderUsername(bidderUsername);
+        bid.setBidderId(bidderId);
         bid.setAmount(amount);
         bidRepository.save(bid);
 
-        auction.setCurrentBid(amount);
+        auction.setCurrentPrice(amount);
         auctionRepository.save(auction);
+
+        BidPlacedEvent event = BidPlacedEvent.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .eventType("BidPlaced")
+                .eventVersion(1)
+                .occurredAt(now)
+                .source("bidmart-auction")
+                .payload(BidPlacedEvent.Payload.builder()
+                        .bidId(bid.getId())
+                        .auctionId(auction.getId())
+                        .listingId(auction.getListingId())
+                        .bidderId(bidderId)
+                        .previousBidderId(previousBidderId)
+                        .amount(amount)
+                        .build())
+                .build();
+        auctionEventPort.publishBidPlaced(event); // publish event
 
         return bid;
     }

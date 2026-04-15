@@ -42,7 +42,7 @@ class AuctionServiceTest {
         auction.setTitle("Vintage Camera");
         auction.setStartingPrice(500000L);
         auction.setMinimumIncrement(50000L);
-        auction.setCurrentBid(0L);
+        auction.setCurrentPrice(0L);
         auction.setStatus(AuctionStatus.DRAFT);
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7));
 
@@ -128,7 +128,7 @@ class AuctionServiceTest {
     void testFindByIdNotFound() {
         when(auctionRepository.findById("invalid-id")).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(java.util.NoSuchElementException.class, () -> {
             auctionService.findById("invalid-id");
         });
     }
@@ -171,7 +171,7 @@ class AuctionServiceTest {
     void testActivateAuctionNotFound() {
         when(auctionRepository.findById("invalid-id")).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(java.util.NoSuchElementException.class, () -> {
             auctionService.activate("invalid-id", "seller-001");
         });
 
