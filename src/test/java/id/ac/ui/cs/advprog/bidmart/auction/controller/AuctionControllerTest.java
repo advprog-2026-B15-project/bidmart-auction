@@ -50,7 +50,7 @@ class AuctionControllerTest {
         auction.setTitle("Vintage Camera");
         auction.setStartingPrice(500000L);
         auction.setMinimumIncrement(50000L);
-        auction.setCurrentBid(0L);
+        auction.setCurrentPrice(0L);
         auction.setStatus(AuctionStatus.DRAFT);
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7));
 
@@ -172,7 +172,7 @@ class AuctionControllerTest {
         Bid bid = new Bid();
         bid.setId("bid-001");
         bid.setAuction(auction);
-        bid.setBidderUsername("buyer-001");
+        bid.setBidderId("buyer-001");
         bid.setAmount(500000L);
 
         when(auctionService.placeBid("auction-101", "buyer-001", 500000L)).thenReturn(bid);
@@ -221,13 +221,13 @@ class AuctionControllerTest {
         Bid bid1 = new Bid();
         bid1.setId("bid-001");
         bid1.setAuction(auction);
-        bid1.setBidderUsername("buyer-001");
+        bid1.setBidderId("buyer-001");
         bid1.setAmount(600000L);
 
         Bid bid2 = new Bid();
         bid2.setId("bid-002");
         bid2.setAuction(auction);
-        bid2.setBidderUsername("buyer-002");
+        bid2.setBidderId("buyer-002");
         bid2.setAmount(500000L);
 
         when(auctionService.getBidHistory("auction-101")).thenReturn(Arrays.asList(bid1, bid2));

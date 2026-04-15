@@ -45,7 +45,7 @@ class BidServiceTest {
         auction.setTitle("Vintage Camera");
         auction.setStartingPrice(500000L);
         auction.setMinimumIncrement(50000L);
-        auction.setCurrentBid(0L);
+        auction.setCurrentPrice(0L);
         auction.setStatus(AuctionStatus.ACTIVE);
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7));
     }
@@ -60,14 +60,14 @@ class BidServiceTest {
 
         assertNotNull(result);
         assertEquals(500000L, result.getAmount());
-        assertEquals("bidder-001", result.getBidderUsername());
+        assertEquals("bidder-001", result.getBidderId());
         verify(bidRepository, times(1)).save(any(Bid.class));
         verify(auctionRepository, times(1)).save(auction);
     }
 
     @Test
     void testPlaceBidSuccessSubsequentBid() {
-        auction.setCurrentBid(500000L);
+        auction.setCurrentPrice(500000L);
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
@@ -91,7 +91,7 @@ class BidServiceTest {
 
     @Test
     void testPlaceBidBelowIncrement() {
-        auction.setCurrentBid(500000L);
+        auction.setCurrentPrice(500000L);
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
 
         assertThrows(IllegalArgumentException.class, () -> {

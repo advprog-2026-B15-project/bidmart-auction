@@ -9,7 +9,8 @@ public class AmountValidationStrategy implements BidValidationStrategy {
         Long minimumRequired;
 
         if (auction.getCurrentPrice() != null && auction.getCurrentPrice() > 0) {
-            Long increment = auction.getMinimumIncrement() != null ? auction.getMinimumIncrement() : 1L;
+            Long increment = auction.getMinimumIncrement() != null 
+                    ? auction.getMinimumIncrement() : 1L;
             // Berlaku minimal bid jika sudah ada tawaran
             minimumRequired = auction.getCurrentPrice() + increment;
         } else {

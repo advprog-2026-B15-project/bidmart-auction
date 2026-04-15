@@ -42,7 +42,7 @@ class AuctionServiceTest {
         auction.setTitle("Vintage Camera");
         auction.setStartingPrice(500000L);
         auction.setMinimumIncrement(50000L);
-        auction.setCurrentBid(0L);
+        auction.setCurrentPrice(0L);
         auction.setStatus(AuctionStatus.DRAFT);
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(7));
 
