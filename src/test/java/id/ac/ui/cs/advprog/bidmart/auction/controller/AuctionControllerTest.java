@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -87,7 +88,7 @@ class AuctionControllerTest {
     @Test
     void testFindByIdNotFound() throws Exception {
         when(auctionService.findById("invalid-id"))
-                .thenThrow(new IllegalArgumentException("Auction tidak ditemukan"));
+                .thenThrow(new NoSuchElementException("Auction not found"));
 
         mockMvc.perform(get("/api/auctions/invalid-id"))
                 .andExpect(status().isNotFound());
@@ -135,6 +136,19 @@ class AuctionControllerTest {
     }
 
     @Test
+    void testCreateAuctionIllegalArgument() throws Exception {
+        when(auctionService.create(any(), any()))
+                .thenThrow(new IllegalArgumentException("Reserve price must be greater than starting price"));
+
+        request.setReservePrice(100000L);
+        mockMvc.perform(post("/api/auctions")
+                        .header("X-User-Id", "seller-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void testActivateAuctionSuccess() throws Exception {
         auction.setStatus(AuctionStatus.ACTIVE);
         when(auctionService.activate("auction-101", "seller-001")).thenReturn(auction);
@@ -148,7 +162,7 @@ class AuctionControllerTest {
     @Test
     void testActivateAuctionWrongSeller() throws Exception {
         when(auctionService.activate("auction-101", "seller-999"))
-                .thenThrow(new IllegalStateException("Hanya seller pemilik yang bisa mengaktifkan lelang"));
+                .thenThrow(new IllegalStateException("Only the owner can activate this auction"));
 
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("X-User-Id", "seller-999"))
@@ -158,14 +172,32 @@ class AuctionControllerTest {
     @Test
     void testActivateAuctionNotDraft() throws Exception {
         when(auctionService.activate("auction-101", "seller-001"))
-                .thenThrow(new IllegalStateException("Hanya auction berstatus DRAFT yang bisa diaktifkan"));
+                .thenThrow(new IllegalStateException("Only DRAFT auctions can be activated"));
 
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("X-User-Id", "seller-001"))
                 .andExpect(status().isBadRequest());
     }
 
-    // ===== PLACE BID =====
+    @Test
+    void testHandleBadStateWith403Code() throws Exception {
+        when(auctionService.activate("auction-101", "seller-001"))
+                .thenThrow(new IllegalStateException("Failed to hold balance: 403 FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/auctions/auction-101/activate")
+                        .header("X-User-Id", "seller-001"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testHandleBadStateWith500Code() throws Exception {
+        when(auctionService.activate("auction-101", "seller-001"))
+                .thenThrow(new IllegalStateException("Failed to hold balance: 500 INTERNAL_SERVER_ERROR"));
+
+        mockMvc.perform(patch("/api/auctions/auction-101/activate")
+                        .header("X-User-Id", "seller-001"))
+                .andExpect(status().isInternalServerError());
+    }
 
     @Test
     void testPlaceBidSuccess() throws Exception {
@@ -188,7 +220,7 @@ class AuctionControllerTest {
     @Test
     void testPlaceBidAuctionNotActive() throws Exception {
         when(auctionService.placeBid("auction-101", "buyer-001", 500000L))
-                .thenThrow(new IllegalStateException("Lelang tidak sedang aktif"));
+                .thenThrow(new IllegalStateException("Auction is not active"));
 
         mockMvc.perform(post("/api/auctions/auction-101/bids")
                         .header("X-User-Id", "buyer-001")
@@ -200,13 +232,13 @@ class AuctionControllerTest {
     @Test
     void testPlaceBidAmountTooLow() throws Exception {
         when(auctionService.placeBid("auction-101", "buyer-001", 100L))
-                .thenThrow(new IllegalArgumentException("Bid minimal harus 500000"));
+                .thenThrow(new IllegalArgumentException("Bid amount must be at least 500000"));
 
         mockMvc.perform(post("/api/auctions/auction-101/bids")
                         .header("X-User-Id", "buyer-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\": 100}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -241,7 +273,7 @@ class AuctionControllerTest {
     @Test
     void testGetBidHistoryAuctionNotFound() throws Exception {
         when(auctionService.getBidHistory("invalid-id"))
-                .thenThrow(new IllegalArgumentException("Auction tidak ditemukan"));
+                .thenThrow(new NoSuchElementException("Auction not found"));
 
         mockMvc.perform(get("/api/auctions/invalid-id/bids"))
                 .andExpect(status().isNotFound());

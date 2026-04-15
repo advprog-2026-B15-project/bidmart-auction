@@ -5,16 +5,23 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
+import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.AmountValidationStrategy;
+import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
+import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.StatusValidationStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +37,18 @@ class BidServiceTest {
 
     @Mock
     private BidRepository bidRepository;
+
+    @Mock
+    private HoldBalancePort holdBalancePort;
+
+    @Mock
+    private AuctionEventPort auctionEventPort;
+
+    @Spy
+    private List<BidValidationStrategy> validationStrategies = Arrays.asList(
+            new StatusValidationStrategy(),
+            new AmountValidationStrategy()
+    );
 
     @InjectMocks
     private AuctionService auctionService;
@@ -53,6 +72,7 @@ class BidServiceTest {
     @Test
     void testPlaceBidSuccessFirstBid() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -61,14 +81,21 @@ class BidServiceTest {
         assertNotNull(result);
         assertEquals(500000L, result.getAmount());
         assertEquals("bidder-001", result.getBidderId());
-        verify(bidRepository, times(1)).save(any(Bid.class));
-        verify(auctionRepository, times(1)).save(auction);
+        // Event harus dipublish sekali
+        verify(auctionEventPort, times(1)).publishBidPlaced(any());
+        verify(holdBalancePort, times(1)).holdBalance("bidder-001", "auction-101", 500000L);
     }
 
     @Test
     void testPlaceBidSuccessSubsequentBid() {
         auction.setCurrentPrice(500000L);
+
+        Bid previousBid = new Bid();
+        previousBid.setBidderId("bidder-001");
+        previousBid.setAmount(500000L);
+
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(bidRepository.findBidHistory("auction-101")).thenReturn(List.of(previousBid));
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -76,17 +103,68 @@ class BidServiceTest {
 
         assertNotNull(result);
         assertEquals(550000L, result.getAmount());
+        verify(auctionEventPort, times(1)).publishBidPlaced(any());
+    }
+
+    @Test
+    void testPlaceBidTriggersAntiSnipingAndSetsExtended() {
+        // Auction berakhir dalam 1 menit (kurang dari 2 menit) -> status jadi EXTENDED
+        auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(1));
+        auction.setStatus(AuctionStatus.ACTIVE);
+
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
+        when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
+
+        auctionService.placeBid("auction-101", "bidder-001", 500000L);
+
+        assertEquals(AuctionStatus.EXTENDED, auction.getStatus());
+        verify(auctionRepository, atLeastOnce()).save(auction);
+    }
+
+    @Test
+    void testPlaceBidAntiSnipingWhenAlreadyExtended() {
+        // Saat EXTENDED, anti-sniping hanya memperpanjang waktu tanpa mengubah status
+        auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(1));
+        auction.setStatus(AuctionStatus.EXTENDED);
+
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
+        when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
+
+        auctionService.placeBid("auction-101", "bidder-001", 500000L);
+
+        // Status tetap EXTENDED, tidak berubah lagi
+        assertEquals(AuctionStatus.EXTENDED, auction.getStatus());
+    }
+
+    @Test
+    void testPlaceBidNoAntiSnipingWhenEndTimeNull() {
+        auction.setEndTime(null);
+
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
+        when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
+
+        Bid result = auctionService.placeBid("auction-101", "bidder-001", 500000L);
+
+        assertNotNull(result);
+        // Status tetap ACTIVE karena anti-sniping tidak berjalan
+        assertEquals(AuctionStatus.ACTIVE, auction.getStatus());
     }
 
     @Test
     void testPlaceBidTooLow() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            auctionService.placeBid("auction-101", "bidder-001", 100000L);
-        });
+        assertThrows(IllegalArgumentException.class, () ->
+                auctionService.placeBid("auction-101", "bidder-001", 100000L));
 
         verify(bidRepository, never()).save(any());
+        verify(holdBalancePort, never()).holdBalance(any(), any(), any());
     }
 
     @Test
@@ -94,9 +172,8 @@ class BidServiceTest {
         auction.setCurrentPrice(500000L);
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            auctionService.placeBid("auction-101", "bidder-002", 510000L);
-        });
+        assertThrows(IllegalArgumentException.class, () ->
+                auctionService.placeBid("auction-101", "bidder-002", 510000L));
 
         verify(bidRepository, never()).save(any());
     }
@@ -106,9 +183,8 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.DRAFT);
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
 
-        assertThrows(IllegalStateException.class, () -> {
-            auctionService.placeBid("auction-101", "bidder-001", 500000L);
-        });
+        assertThrows(IllegalStateException.class, () ->
+                auctionService.placeBid("auction-101", "bidder-001", 500000L));
 
         verify(bidRepository, never()).save(any());
     }
@@ -118,9 +194,8 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.CLOSED);
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
 
-        assertThrows(IllegalStateException.class, () -> {
-            auctionService.placeBid("auction-101", "bidder-001", 500000L);
-        });
+        assertThrows(IllegalStateException.class, () ->
+                auctionService.placeBid("auction-101", "bidder-001", 500000L));
 
         verify(bidRepository, never()).save(any());
     }
@@ -139,5 +214,13 @@ class BidServiceTest {
 
         assertEquals(2, result.size());
         assertEquals(600000L, result.get(0).getAmount());
+    }
+
+    @Test
+    void testGetBidHistoryAuctionNotFound() {
+        when(auctionRepository.findById("invalid-id")).thenReturn(Optional.empty());
+
+        assertThrows(java.util.NoSuchElementException.class, () ->
+                auctionService.getBidHistory("invalid-id"));
     }
 }
