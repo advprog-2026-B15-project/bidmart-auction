@@ -1,0 +1,250 @@
+{
+	"info": {
+		"name": "BidMart Auction API Tests",
+		"description": "Koleksi Postman untuk menguji fungsionalitas modul Auction BidMart.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Create Draft Auction",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 201) {",
+							"    var jsonData = pm.response.json();",
+							"    pm.collectionVariables.set(\"auctionId\", jsonData.id);",
+							"    console.log(\"Auction ID saved: \" + jsonData.id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-User-Id",
+						"value": "{{sellerId}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"listingId\": \"290f1ee-6c54-4b01-90e6-d701748f0851\",\n  \"title\": \"Mechanical Keyboard Custom\",\n  \"startingPrice\": 1200000,\n  \"reservePrice\": 1500000,\n  \"minimumIncrement\": 50000,\n  \"endTime\": \"2026-12-31T12:00:00Z\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Bid Before Active (Fail)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-User-Id",
+						"value": "{{buyerId}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"amount\": 1300000\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}",
+						"bids"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Activate Auction",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "X-User-Id",
+						"value": "{{sellerId}}"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/activate",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}",
+						"activate"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Bid Below Minimum (Fail)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-User-Id",
+						"value": "{{buyerId}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"amount\": 1000000\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}",
+						"bids"
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Place Bid (Success / 500 Wallet Error)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-User-Id",
+						"value": "{{buyerId}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"amount\": 1250000\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}",
+						"bids"
+					]
+				}
+			}
+		},
+		{
+			"name": "6. Get Bid History",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}",
+						"bids"
+					]
+				}
+			}
+		},
+		{
+			"name": "7. Get Auction by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions",
+						"{{auctionId}}"
+					]
+				}
+			}
+		},
+		{
+			"name": "8. Get All Auctions",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/auctions",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auctions"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8083",
+			"type": "string"
+		},
+		{
+			"key": "sellerId",
+			"value": "usr-seller-01",
+			"type": "string"
+		},
+		{
+			"key": "buyerId",
+			"value": "usr-buyer-99",
+			"type": "string"
+		},
+		{
+			"key": "auctionId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
