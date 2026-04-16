@@ -36,6 +36,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
+    implementation("me.paulschwarz:spring-dotenv:4.0.0")
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")

@@ -11,7 +11,7 @@ class AuctionModelTest {
 
     @Test
     void testPrePersistSetsDefaultsWhenNull() {
-        // Ssemua field null sebelum persist
+        // Semua field null sebelum persist
         Auction auction = new Auction();
         assertNull(auction.getStatus());
         assertNull(auction.getCurrentPrice());
