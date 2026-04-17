@@ -35,9 +35,11 @@ class RabbitMQAdapterTest {
                         .bidId("bid-001")
                         .auctionId("auction-001")
                         .listingId("listing-001")
-                        .bidderId("user-001")
-                        .previousBidderId(null)
-                        .amount(500000L)
+                        .sellerUserId("seller-001")
+                        .bidderUserId("user-001")
+                        .previousBidderUserId(null)
+                        .bidAmount(500000L)
+                        .itemName("Test Item")
                         .build())
                 .build();
 
