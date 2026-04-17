@@ -10,7 +10,7 @@ public class BidResponse {
 
     private String id;
     private String auctionId;
-    private String bidderUsername;
+    private String bidderId;
     private Long amount;
     private OffsetDateTime createdAt;
 
@@ -18,7 +18,7 @@ public class BidResponse {
         BidResponse res = new BidResponse();
         res.id = bid.getId();
         res.auctionId = bid.getAuction().getId();
-        res.bidderUsername = bid.getBidderUsername();
+        res.bidderId = bid.getBidderId();
         res.amount = bid.getAmount();
         res.createdAt = bid.getCreatedAt();
         return res;
