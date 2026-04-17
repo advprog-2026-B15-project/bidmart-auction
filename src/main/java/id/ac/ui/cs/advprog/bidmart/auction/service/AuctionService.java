@@ -115,9 +115,11 @@ public class AuctionService {
                         .bidId(bid.getId())
                         .auctionId(auction.getId())
                         .listingId(auction.getListingId())
-                        .bidderId(bidderId)
-                        .previousBidderId(previousBidderId)
-                        .amount(amount)
+                        .sellerUserId(auction.getSellerId())
+                        .bidderUserId(bidderId)
+                        .previousBidderUserId(previousBidderId)
+                        .bidAmount(amount)
+                        .itemName(auction.getTitle())
                         .build())
                 .build();
         auctionEventPort.publishBidPlaced(event); // publish event

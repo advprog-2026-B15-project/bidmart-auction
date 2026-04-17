@@ -30,8 +30,10 @@ public class BidPlacedEvent {
         private String bidId;
         private String auctionId;
         private String listingId;
-        private String bidderId;
-        private String previousBidderId;
-        private Long amount;
+        private String sellerUserId;
+        private String bidderUserId;
+        private String previousBidderUserId;
+        private Long bidAmount;
+        private String itemName;
     }
 }
