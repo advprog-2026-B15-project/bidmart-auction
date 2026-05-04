@@ -10,11 +10,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RedisConfig {
 
-    @Value("${spring.data.redis.host:localhost}")
-    private String redisHost;
-
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
+    /**
+     * URL koneksi Redis.
+     * Untuk Upstash, gunakan format: rediss://:<password>@<host>:<port> (SSL).
+     * Untuk penggunaan lokal, gunakan: redis://localhost:6379.
+     */
+    @Value("${spring.data.redis.url:redis://localhost:6379}")
+    private String redisUrl;
 
     @Bean
     public RedissonClient redissonClient() {

@@ -10,6 +10,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.BidPlacedEvent;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
+import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,7 @@ public class AuctionService {
     private final List<BidValidationStrategy> validationStrategies;
     private final HoldBalancePort holdBalancePort;
     private final AuctionEventPort auctionEventPort;
+    private final DistributedLockTemplate lockTemplate;
 
     public List<Auction> findAll() {
         return auctionRepository.findAll();
@@ -71,60 +73,62 @@ public class AuctionService {
     }
 
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
-        Auction auction = findById(auctionId);
+        return lockTemplate.executeWithLock("auction-lock-" + auctionId, 5, 10, java.util.concurrent.TimeUnit.SECONDS, () -> {
+            Auction auction = findById(auctionId);
 
-        for (BidValidationStrategy strategy : validationStrategies) {
-            strategy.validate(auction, amount);
-        }
-
-        String previousBidderId = null;
-        List<Bid> history = bidRepository.findBidHistory(auctionId);
-        if (!history.isEmpty()) {
-            previousBidderId = history.get(0).getBidderId();
-        }
-
-        // tahan reservasi saldo dompet via integrasi REST api
-        holdBalancePort.holdBalance(bidderId, auctionId, amount);
-
-        // anti-sniping
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
-            auction.setEndTime(auction.getEndTime().plusMinutes(2));
-            if (auction.getStatus() == AuctionStatus.ACTIVE) {
-                auction.setStatus(AuctionStatus.EXTENDED);
+            for (BidValidationStrategy strategy : validationStrategies) {
+                strategy.validate(auction, amount);
             }
-        }
 
-        // simpan state
-        Bid bid = new Bid();
-        bid.setAuction(auction);
-        bid.setBidderId(bidderId);
-        bid.setAmount(amount);
-        bidRepository.save(bid);
+            String previousBidderId = null;
+            List<Bid> history = bidRepository.findBidHistory(auctionId);
+            if (!history.isEmpty()) {
+                previousBidderId = history.get(0).getBidderId();
+            }
 
-        auction.setCurrentPrice(amount);
-        auctionRepository.save(auction);
+            // tahan reservasi saldo dompet via integrasi REST api
+            holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
-        BidPlacedEvent event = BidPlacedEvent.builder()
-                .eventId(java.util.UUID.randomUUID().toString())
-                .eventType("BidPlaced")
-                .eventVersion(1)
-                .occurredAt(now)
-                .source("bidmart-auction")
-                .payload(BidPlacedEvent.Payload.builder()
-                        .bidId(bid.getId())
-                        .auctionId(auction.getId())
-                        .listingId(auction.getListingId())
-                        .sellerUserId(auction.getSellerId())
-                        .bidderUserId(bidderId)
-                        .previousBidderUserId(previousBidderId)
-                        .bidAmount(amount)
-                        .itemName(auction.getTitle())
-                        .build())
-                .build();
-        auctionEventPort.publishBidPlaced(event); // publish event
+            // anti-sniping
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
+                auction.setEndTime(auction.getEndTime().plusMinutes(2));
+                if (auction.getStatus() == AuctionStatus.ACTIVE) {
+                    auction.setStatus(AuctionStatus.EXTENDED);
+                }
+            }
 
-        return bid;
+            // simpan state
+            Bid bid = new Bid();
+            bid.setAuction(auction);
+            bid.setBidderId(bidderId);
+            bid.setAmount(amount);
+            bidRepository.save(bid);
+
+            auction.setCurrentPrice(amount);
+            auctionRepository.save(auction);
+
+            BidPlacedEvent event = BidPlacedEvent.builder()
+                    .eventId(java.util.UUID.randomUUID().toString())
+                    .eventType("BidPlaced")
+                    .eventVersion(1)
+                    .occurredAt(now)
+                    .source("bidmart-auction")
+                    .payload(BidPlacedEvent.Payload.builder()
+                            .bidId(bid.getId())
+                            .auctionId(auction.getId())
+                            .listingId(auction.getListingId())
+                            .sellerUserId(auction.getSellerId())
+                            .bidderUserId(bidderId)
+                            .previousBidderUserId(previousBidderId)
+                            .bidAmount(amount)
+                            .itemName(auction.getTitle())
+                            .build())
+                    .build();
+            auctionEventPort.publishBidPlaced(event); // publish event
+
+            return bid;
+        });
     }
 
     public List<Bid> getBidHistory(String auctionId) {
