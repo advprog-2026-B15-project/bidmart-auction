@@ -22,11 +22,8 @@ public class AuctionClosedEvent extends AbstractEvent {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder
-    public static class Payload {
-        private String auctionId;
-        private String listingId;
-        private String sellerUserId;
+    @SuperBuilder
+    public static class Payload extends BasePayload {
         private OffsetDateTime closedAt;
         private List<String> allBidderIds;
     }

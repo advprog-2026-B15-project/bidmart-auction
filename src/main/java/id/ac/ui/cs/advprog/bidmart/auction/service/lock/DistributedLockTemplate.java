@@ -43,8 +43,8 @@ public class DistributedLockTemplate {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Thread interrupted while waiting for lock: " + lockKey, e);
         } catch (Exception e) {
-            if (e instanceof RuntimeException) {
-                throw (RuntimeException) e;
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
             }
             throw new RuntimeException("Error executing inside lock for key: " + lockKey, e);
         } finally {

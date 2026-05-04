@@ -79,14 +79,12 @@ class AuctionClosingSchedulerTest {
     @Test
     @SuppressWarnings("unchecked")
     void closeExpiredAuctions_WonScenario() throws Exception {
-        // Setup scheduler lock
         when(lockTemplate.executeWithLock(eq("auction-scheduler-lock"), eq(0L), eq(30L), eq(TimeUnit.SECONDS), any(LockCallback.class)))
             .thenAnswer(invocation -> {
                 LockCallback<Void> callback = invocation.getArgument(4);
                 return callback.doWithLock();
             });
 
-        // Setup auction specific lock
         when(lockTemplate.executeWithLock(eq("auction-lock-auc-1"), eq(5L), eq(10L), eq(TimeUnit.SECONDS), any(LockCallback.class)))
             .thenAnswer(invocation -> {
                 LockCallback<Void> callback = invocation.getArgument(4);
@@ -116,7 +114,7 @@ class AuctionClosingSchedulerTest {
     @Test
     @SuppressWarnings("unchecked")
     void closeExpiredAuctions_UnsoldScenario() throws Exception {
-        auction1.setReservePrice(500L); // Highest bid is 150, so it doesn't meet reserve
+        auction1.setReservePrice(500L);
 
         when(lockTemplate.executeWithLock(eq("auction-scheduler-lock"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class)))
             .thenAnswer(invocation -> ((LockCallback<Void>) invocation.getArgument(4)).doWithLock());
@@ -145,7 +143,7 @@ class AuctionClosingSchedulerTest {
     @Test
     @SuppressWarnings("unchecked")
     void closeExpiredAuctions_AlreadyProcessed() throws Exception {
-        auction1.setStatus(AuctionStatus.WON); // Already WON
+        auction1.setStatus(AuctionStatus.WON); // already WON
 
         when(lockTemplate.executeWithLock(eq("auction-scheduler-lock"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class)))
             .thenAnswer(invocation -> ((LockCallback<Void>) invocation.getArgument(4)).doWithLock());
@@ -153,7 +151,6 @@ class AuctionClosingSchedulerTest {
         when(lockTemplate.executeWithLock(eq("auction-lock-auc-1"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class)))
             .thenAnswer(invocation -> ((LockCallback<Void>) invocation.getArgument(4)).doWithLock());
 
-        // Initial fetch returns ACTIVE in the expired query
         Auction staleAuction = new Auction();
         staleAuction.setId("auc-1");
         staleAuction.setStatus(AuctionStatus.ACTIVE);
@@ -161,7 +158,6 @@ class AuctionClosingSchedulerTest {
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(Collections.singletonList(staleAuction));
         
-        // Re-fetch inside lock returns WON
         when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction1));
 
         scheduler.closeExpiredAuctions();

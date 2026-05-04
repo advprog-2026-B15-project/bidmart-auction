@@ -10,6 +10,7 @@ plugins {
 group = "id.ac.ui.cs.advprog.bidmart"
 version = "0.0.1-SNAPSHOT"
 description = "bidmart-auction"
+val redissonVersion = "3.27.1"
 
 java {
     toolchain {
@@ -37,7 +38,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
-    implementation("org.redisson:redisson-spring-boot-starter:3.27.1")
+    implementation("org.redisson:redisson-spring-boot-starter:$redissonVersion")
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")

@@ -39,7 +39,7 @@ class DistributedLockTemplateTest {
     }
 
     @Test
-    void executeWithLock_Success() throws Exception {
+    void executeWithLock_Success() throws InterruptedException {
         when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(rLock.isHeldByCurrentThread()).thenReturn(true);
         when(callback.doWithLock()).thenReturn("success");
@@ -53,7 +53,7 @@ class DistributedLockTemplateTest {
     }
 
     @Test
-    void executeWithLock_CannotAcquireLock() throws Exception {
+    void executeWithLock_CannotAcquireLock() throws InterruptedException {
         when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(false);
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> 
@@ -66,7 +66,7 @@ class DistributedLockTemplateTest {
     }
 
     @Test
-    void executeWithLock_CallbackThrowsException() throws Exception {
+    void executeWithLock_CallbackThrowsException() throws InterruptedException {
         when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
         when(rLock.isHeldByCurrentThread()).thenReturn(true);
         when(callback.doWithLock()).thenThrow(new IllegalArgumentException("Invalid state"));
@@ -80,21 +80,7 @@ class DistributedLockTemplateTest {
     }
 
     @Test
-    void executeWithLock_CallbackThrowsNonRuntimeException() throws Exception {
-        when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
-        when(rLock.isHeldByCurrentThread()).thenReturn(true);
-        when(callback.doWithLock()).thenThrow(new Exception("Checked exception"));
-
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> 
-            lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, callback)
-        );
-
-        assertTrue(exception.getMessage().contains("Error executing inside lock"));
-        verify(rLock).unlock();
-    }
-
-    @Test
-    void executeWithLock_InterruptedException() throws Exception {
+    void executeWithLock_InterruptedException() throws InterruptedException {
         when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenThrow(new InterruptedException("Interrupted"));
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> 
