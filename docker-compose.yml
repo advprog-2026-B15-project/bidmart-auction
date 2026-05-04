@@ -17,6 +17,12 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  redis:
+    image: redis:alpine
+    container_name: bidmart-redis
+    ports:
+      - "6379:6379"
+
   app:
     image: kurrorro/bidmart-auction:latest
     container_name: bidmart-auction-app
