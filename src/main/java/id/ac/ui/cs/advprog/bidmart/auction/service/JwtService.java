@@ -21,9 +21,6 @@ public class JwtService {
      */
     public String extractUserId(String token) {
         Claims claims = extractAllClaims(token);
-        if (isTokenExpired(claims)) {
-            throw new IllegalStateException("Token has expired");
-        }
         return claims.getSubject();
     }
 
@@ -31,15 +28,15 @@ public class JwtService {
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
         }
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    private boolean isTokenExpired(Claims claims) {
-        return claims.getExpiration().before(new java.util.Date());
+        try {
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            throw new IllegalStateException("Token has expired");
+        }
     }
 
     private SecretKey getSigningKey() {
