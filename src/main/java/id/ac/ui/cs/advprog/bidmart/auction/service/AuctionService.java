@@ -86,7 +86,7 @@ public class AuctionService {
                 previousBidderId = history.get(0).getBidderId();
             }
 
-            // tahan reservasi saldo dompet via integrasi REST api
+            // tahan reservasi saldo dompet penawar baru
             holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
             // anti-sniping

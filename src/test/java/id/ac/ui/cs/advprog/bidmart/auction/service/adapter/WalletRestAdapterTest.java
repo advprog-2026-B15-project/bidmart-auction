@@ -24,11 +24,11 @@ class WalletRestAdapterTest {
 
     @Test
     void testHoldBalanceSuccess() {
-        server.expect(requestTo("http://localhost:8080/wallet/hold"))
+        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.userId").value("user-001"))
-                .andExpect(jsonPath("$.auctionId").value("auction-001"))
+                .andExpect(jsonPath("$.auctId").value("auction-001"))
                 .andExpect(jsonPath("$.amount").value(500000))
                 .andRespond(withSuccess());
 
@@ -38,7 +38,7 @@ class WalletRestAdapterTest {
 
     @Test
     void testHoldBalanceError4xx() {
-        server.expect(requestTo("http://localhost:8080/wallet/hold"))
+        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
                 .andRespond(withBadRequest());
 
         assertThrows(IllegalStateException.class, () -> 
@@ -49,7 +49,7 @@ class WalletRestAdapterTest {
 
     @Test
     void testHoldBalanceError5xx() {
-        server.expect(requestTo("http://localhost:8080/wallet/hold"))
+        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
                 .andRespond(withServerError());
 
         assertThrows(IllegalStateException.class, () -> 

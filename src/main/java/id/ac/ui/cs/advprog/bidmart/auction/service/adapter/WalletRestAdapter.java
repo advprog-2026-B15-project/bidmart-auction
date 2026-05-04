@@ -23,15 +23,15 @@ public class WalletRestAdapter implements HoldBalancePort {
 
     @Override
     public void holdBalance(String userId, String auctionId, Long amount) {
-        // TODO: Konfirmasi dengan PJ Wallet:
-        // 1. Apakah URL Endpoint-nya benar "/wallet/hold" ?
-        //    (Bukan "/wallets/{userId}/hold" atau yang lain?)
-        // 2. Apakah key JSON Body-nya persis memakai "userId", "auctionId", dan "amount" ?
-        String endpoint = walletServiceUrl + "/wallet/hold"; 
+        sendWalletRequest("/internal/wallet/hold", userId, auctionId, amount);
+    }
+
+    private void sendWalletRequest(String path, String userId, String auctionId, Long amount) {
+        String endpoint = walletServiceUrl + path;
         
         Map<String, Object> requestBody = Map.of(
                 "userId", userId,
-                "auctionId", auctionId,
+                "auctId", auctionId, // Sesuai dengan field di HoldRequest Wallet
                 "amount", amount
         );
 
@@ -42,7 +42,7 @@ public class WalletRestAdapter implements HoldBalancePort {
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), 
                     (request, response) -> {
-                    throw new IllegalStateException("Failed to hold balance: " + response.getStatusCode());
+                    throw new IllegalStateException("Failed wallet operation (" + path + "): " + response.getStatusCode());
                 })
                 .toBodilessEntity();
     }

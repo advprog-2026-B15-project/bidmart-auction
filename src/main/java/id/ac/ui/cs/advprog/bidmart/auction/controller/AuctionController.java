@@ -67,17 +67,20 @@ public class AuctionController {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<String> handleBadState(IllegalStateException e) {
-        if (e.getMessage().toLowerCase().contains("owner")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        String msg = e.getMessage();
+        if (msg.toLowerCase().contains("owner")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(msg);
         }
-        // TODO: Konfirmasi dengan PJ Wallet terkait bentuk final response error code-nya
-        if (e.getMessage().contains("403")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        
+        // Menangani error dari integrasi Wallet service
+        if (msg.contains("403")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wallet error: Forbidden. Check your balance or permissions.");
         }
-        if (e.getMessage().contains("500")) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        if (msg.contains("500")) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Wallet service is currently unavailable.");
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(msg);
     }
 
     @PostMapping("/{id}/bids")
