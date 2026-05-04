@@ -3,6 +3,9 @@ name: SonarCloud Analysis
 on:
   push:
     branches: [ "staging", "main", "feat/ci-cd" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ "staging", "main" ]
 
 jobs:
   sonar:
