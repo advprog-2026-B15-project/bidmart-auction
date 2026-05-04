@@ -72,7 +72,6 @@ public class AuctionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(msg);
         }
         
-        // Menangani error dari integrasi Wallet service
         if (msg.contains("403")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wallet error: Forbidden. Check your balance or permissions.");
         }

@@ -15,10 +15,7 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secret;
 
-    /**
-     * Mengekstrak identitas pengguna (email) dari token JWT.
-     * Sesuai dengan service Auth, identitas disimpan dalam claim 'sub' (subject).
-     */
+    // ekstrak identitas pengguna (email) dari token JWT
     public String extractUserId(String token) {
         Claims claims = extractAllClaims(token);
         return claims.getSubject();

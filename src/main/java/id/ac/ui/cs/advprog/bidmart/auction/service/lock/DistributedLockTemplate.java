@@ -15,20 +15,6 @@ public class DistributedLockTemplate {
 
     private final RedissonClient redissonClient;
 
-    /**
-     * Mengeksekusi callback yang diberikan di dalam sebuah distributed lock.
-     * Menggunakan pattern Template Method untuk menangani perolehan dan pelepasan lock secara aman.
-     *
-     * @param lockKey  kunci unik untuk lock
-     * @param waitTime waktu maksimal untuk menunggu lock
-     * @param leaseTime waktu maksimal lock ditahan sebelum otomatis dilepas (TTL)
-     * @param unit     satuan waktu
-     * @param callback logika bisnis yang akan dieksekusi selama menahan lock
-     * @param <T>      tipe kembalian dari callback
-     * @return hasil dari eksekusi callback
-     * @throws IllegalStateException jika lock gagal didapatkan
-     * @throws RuntimeException jika terjadi error saat mengeksekusi callback
-     */
     public <T> T executeWithLock(
             String lockKey, long waitTime, long leaseTime, TimeUnit unit, LockCallback<T> callback) {
         RLock lock = redissonClient.getLock(lockKey);

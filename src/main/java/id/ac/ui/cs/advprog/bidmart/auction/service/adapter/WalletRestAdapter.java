@@ -31,7 +31,7 @@ public class WalletRestAdapter implements HoldBalancePort {
         
         Map<String, Object> requestBody = Map.of(
                 "userId", userId,
-                "auctId", auctionId, // Sesuai dengan field di HoldRequest Wallet
+                "auctId", auctionId,
                 "amount", amount
         );
 

@@ -18,20 +18,18 @@ public class JwtInterceptor implements HandlerInterceptor {
         String authHeader = request.getHeader("Authorization");
         String method = request.getMethod();
 
-        // Izinkan GET request tanpa token (agar publik bisa melihat daftar lelang)
         if ("GET".equalsIgnoreCase(method)) {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 try {
                     String userId = jwtService.extractUserId(authHeader);
                     request.setAttribute("userId", userId);
                 } catch (Exception e) {
-                    // Abaikan error pada GET, userId tetap null
                 }
             }
             return true;
         }
 
-        // Untuk POST, PATCH, DELETE, dll, token WAJIB ada dan valid
+        // untuk POST, PATCH, DELETE, dll, token WAJIB ada dan valid
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authorization token is required for this action");
             return false;

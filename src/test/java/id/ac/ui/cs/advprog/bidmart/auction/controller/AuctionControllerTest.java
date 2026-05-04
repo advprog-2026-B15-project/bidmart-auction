@@ -37,7 +37,7 @@ class AuctionControllerTest {
     private AuctionService auctionService;
 
     @MockitoBean
-    private JwtService jwtService; // Masih butuh di konteks karena JwtInterceptor butuh bean ini
+    private JwtService jwtService; 
 
     private ObjectMapper objectMapper;
     private Auction auction;
@@ -131,7 +131,7 @@ class AuctionControllerTest {
 
     @Test
     void testCreateAuctionMissingSellerId() throws Exception {
-        // Tanpa Header Authorization, akan kena 401 dari Interceptor
+        // tanpa Header Authorization, akan kena 401 dari Interceptor
         mockMvc.perform(post("/api/auctions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -140,8 +140,8 @@ class AuctionControllerTest {
 
     @Test
     void testCreateAuctionInvalidRequest() throws Exception {
-        request.setTitle(""); // NotBlank violation
-        request.setStartingPrice(-1L); // Min violation
+        request.setTitle(""); 
+        request.setStartingPrice(-1L);
 
         mockMvc.perform(post("/api/auctions")
                         .header("Authorization", "Bearer seller-001")
