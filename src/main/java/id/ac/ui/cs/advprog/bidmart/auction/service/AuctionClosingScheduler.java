@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -46,8 +48,16 @@ public class AuctionClosingScheduler {
             List<Auction> expiredAuctions = auctionRepository.findExpiredByStatuses(
                     Arrays.asList(AuctionStatus.ACTIVE, AuctionStatus.EXTENDED), now);
 
-            for (Auction auction : expiredAuctions) {
-                processAuctionClosure(auction, now);
+            if (!expiredAuctions.isEmpty()) {
+                log.info("Found {} expired auctions to process", expiredAuctions.size());
+                // Gunakan parallelStream untuk memproses ribuan lelang secara konkuren
+                expiredAuctions.parallelStream().forEach(auction -> {
+                    try {
+                        processAuctionClosure(auction, now);
+                    } catch (Exception e) {
+                        log.error("Error processing closure for auction {}: {}", auction.getId(), e.getMessage());
+                    }
+                });
             }
 
             log.info("Finished expired auctions closing job, processed {} auctions", expiredAuctions.size());
@@ -55,7 +65,8 @@ public class AuctionClosingScheduler {
         });
     }
 
-    private void processAuctionClosure(Auction auction, OffsetDateTime closedAt) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processAuctionClosure(Auction auction, OffsetDateTime closedAt) {
         // Lock per lelang untuk mencegah bentrok dengan bid yang masuk saat lelang sedang ditutup
         lockTemplate.executeWithLock("auction-lock-" + auction.getId(), 5, 10, TimeUnit.SECONDS, () -> {
             

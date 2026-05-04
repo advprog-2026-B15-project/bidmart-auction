@@ -18,6 +18,7 @@ import java.util.List;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +74,8 @@ public class AuctionService {
     }
 
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
-        return lockTemplate.executeWithLock("auction-lock-" + auctionId, 5, 10, java.util.concurrent.TimeUnit.SECONDS, () -> {
+        String lockKey = "auction-lock-" + auctionId;
+        return lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
             Auction auction = findById(auctionId);
 
             for (BidValidationStrategy strategy : validationStrategies) {

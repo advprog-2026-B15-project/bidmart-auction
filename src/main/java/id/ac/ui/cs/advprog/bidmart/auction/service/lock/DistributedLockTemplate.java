@@ -29,7 +29,8 @@ public class DistributedLockTemplate {
      * @throws IllegalStateException jika lock gagal didapatkan
      * @throws RuntimeException jika terjadi error saat mengeksekusi callback
      */
-    public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime, TimeUnit unit, LockCallback<T> callback) {
+    public <T> T executeWithLock(
+            String lockKey, long waitTime, long leaseTime, TimeUnit unit, LockCallback<T> callback) {
         RLock lock = redissonClient.getLock(lockKey);
         boolean isLocked = false;
         try {
