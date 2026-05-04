@@ -10,6 +10,8 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.AmountValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.StatusValidationStrategy;
+import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
+import id.ac.ui.cs.advprog.bidmart.auction.service.lock.LockCallback;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,13 +52,23 @@ class BidServiceTest {
             new AmountValidationStrategy()
     );
 
+    @Mock
+    private DistributedLockTemplate lockTemplate;
+
     @InjectMocks
     private AuctionService auctionService;
 
     private Auction auction;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
+        lenient().when(lockTemplate.executeWithLock(anyString(), anyLong(), anyLong(), any(java.util.concurrent.TimeUnit.class), any(id.ac.ui.cs.advprog.bidmart.auction.service.lock.LockCallback.class)))
+            .thenAnswer(invocation -> {
+                id.ac.ui.cs.advprog.bidmart.auction.service.lock.LockCallback<?> callback = invocation.getArgument(4);
+                return callback.doWithLock();
+            });
+
         auction = new Auction();
         auction.setId("auction-101");
         auction.setSellerId("seller-001");
