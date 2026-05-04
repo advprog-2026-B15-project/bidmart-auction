@@ -7,19 +7,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class WinnerDeterminedEvent {
+@SuperBuilder
+public class WinnerDeterminedEvent extends AbstractEvent {
 
-    private String eventId;
-    private String eventType;
-    private Integer eventVersion;
-    private OffsetDateTime occurredAt;
-    private String source;
     private Payload payload;
 
     @Getter
