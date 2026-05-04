@@ -59,8 +59,11 @@ public class Auction {
     @Column(name = "listing_id", nullable = false, length = 36)
     private String listingId; // referensi ke Catalog module
 
-    @Column(name = "seller_id", nullable = false, length = 36)
-    private String sellerId; // referensi ke user dari Auth module
+    @Column(name = "seller_id", nullable = false, length = 255)
+    private String sellerId; // Berisi email dari Auth module
+
+    @jakarta.persistence.Version
+    private Integer version;
 
     @PrePersist
     public void prePersist() {
