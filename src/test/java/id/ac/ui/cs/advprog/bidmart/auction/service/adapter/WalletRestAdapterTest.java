@@ -8,7 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.client.MockRestServiceServer;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.ExpectedCount.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
@@ -37,22 +38,35 @@ class WalletRestAdapterTest {
     }
 
     @Test
-    void testHoldBalanceError4xx() {
-        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
+    void testHoldBalanceError4xx_noRetry() {
+        server.expect(times(1), requestTo("http://localhost:8080/internal/wallet/hold"))
                 .andRespond(withBadRequest());
 
-        assertThrows(IllegalStateException.class, () -> 
+        assertThrows(IllegalStateException.class, () ->
             walletRestAdapter.holdBalance("user-001", "auction-001", 500000L)
         );
         server.verify();
     }
 
     @Test
-    void testHoldBalanceError5xx() {
-        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
+    void testHoldBalanceError5xx_retriesAndFails() {
+        server.expect(times(3), requestTo("http://localhost:8080/internal/wallet/hold"))
                 .andRespond(withServerError());
 
-        assertThrows(IllegalStateException.class, () -> 
+        assertThrows(IllegalStateException.class, () ->
+            walletRestAdapter.holdBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testHoldBalanceError5xx_retriesAndSucceeds() {
+        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
+                .andRespond(withServerError());
+        server.expect(requestTo("http://localhost:8080/internal/wallet/hold"))
+                .andRespond(withSuccess());
+
+        assertDoesNotThrow(() ->
             walletRestAdapter.holdBalance("user-001", "auction-001", 500000L)
         );
         server.verify();
