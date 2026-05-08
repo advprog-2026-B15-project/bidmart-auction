@@ -13,6 +13,8 @@ public class RabbitMQConfig {
 
     public static final String EXCHANGE_NAME = "bidmart.auction.exchange";
     public static final String ROUTING_KEY_BID_PLACED = "auction.event.bid-placed";
+    public static final String ROUTING_KEY_WINNER_DETERMINED = "auction.event.winner-determined";
+    public static final String ROUTING_KEY_AUCTION_CLOSED = "auction.event.auction-closed";
 
     @Bean
     public TopicExchange auctionExchange() {
