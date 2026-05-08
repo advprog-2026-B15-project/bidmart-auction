@@ -26,6 +26,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+// CATATAN: Di unit test, TransactionSynchronizationManager.isActualTransactionActive()
+// mengembalikan false (tidak ada transaksi Spring aktif), sehingga event dipublish
+// langsung via fallback path — ini adalah expected behavior di test context.
+// Integration test dengan @SpringBootTest + @Transactional diperlukan untuk verifikasi
+// afterCommit() path secara penuh.
+
 @ExtendWith(MockitoExtension.class)
 class AuctionClosureDatabaseServiceTest {
 
@@ -179,5 +185,38 @@ class AuctionClosureDatabaseServiceTest {
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
+    }
+
+    @Test
+    void closeAuction_won_eventPublishedAfterSave() {
+        // Verifikasi urutan: save() harus dipanggil sebelum publishWinnerDetermined().
+        // Di unit test (tidak ada transaksi aktif), event dipublish via fallback path
+        // (langsung, bukan via afterCommit). Urutan save → publish tetap diverifikasi.
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+        when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
+        when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1")).thenReturn(Collections.emptyList());
+
+        var inOrder = inOrder(auctionRepository, auctionEventPort);
+
+        service.closeAuction("auc-1", now);
+
+        inOrder.verify(auctionRepository).save(auction);
+        inOrder.verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
+    }
+
+    @Test
+    void closeAuction_unsold_eventPublishedAfterSave() {
+        auction.setReservePrice(500L);
+
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+        when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
+        when(bidRepository.findDistinctBidderIdsByAuctionId("auc-1")).thenReturn(Collections.emptyList());
+
+        var inOrder = inOrder(auctionRepository, auctionEventPort);
+
+        service.closeAuction("auc-1", now);
+
+        inOrder.verify(auctionRepository).save(auction);
+        inOrder.verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
     }
 }

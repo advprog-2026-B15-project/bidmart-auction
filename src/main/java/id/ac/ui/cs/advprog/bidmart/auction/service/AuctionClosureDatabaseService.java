@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -79,8 +81,21 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        auctionEventPort.publishWinnerDetermined(event);
-        log.info("Auction {} closed as WON, published WinnerDeterminedEvent", auction.getId());
+        // Publish event SETELAH transaksi commit agar consumer tidak baca stale state.
+        // Jika method ini dipanggil di luar transaksi aktif, publishWinnerDetermined
+        // dipanggil langsung (fallback).
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    auctionEventPort.publishWinnerDetermined(event);
+                    log.info("Auction {} closed as WON, published WinnerDeterminedEvent", auction.getId());
+                }
+            });
+        } else {
+            auctionEventPort.publishWinnerDetermined(event);
+            log.info("Auction {} closed as WON, published WinnerDeterminedEvent", auction.getId());
+        }
     }
 
     private void closeAsUnsold(Auction auction, OffsetDateTime closedAt) {
@@ -104,7 +119,18 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        auctionEventPort.publishAuctionClosed(event);
-        log.info("Auction {} closed as UNSOLD, published AuctionClosedEvent", auction.getId());
+        // Publish event SETELAH transaksi commit agar consumer tidak baca stale state.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    auctionEventPort.publishAuctionClosed(event);
+                    log.info("Auction {} closed as UNSOLD, published AuctionClosedEvent", auction.getId());
+                }
+            });
+        } else {
+            auctionEventPort.publishAuctionClosed(event);
+            log.info("Auction {} closed as UNSOLD, published AuctionClosedEvent", auction.getId());
+        }
     }
 }
