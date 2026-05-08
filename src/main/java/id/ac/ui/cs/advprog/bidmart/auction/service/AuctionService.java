@@ -69,7 +69,7 @@ public class AuctionService {
             throw new IllegalStateException("Only DRAFT auctions can be activated");
         }
 
-        auction.setStatus(AuctionStatus.ACTIVE); // DRAFT -> ACTIVE
+        auction.setStatus(AuctionStatus.ACTIVE); 
         return auctionRepository.save(auction);
     }
 
