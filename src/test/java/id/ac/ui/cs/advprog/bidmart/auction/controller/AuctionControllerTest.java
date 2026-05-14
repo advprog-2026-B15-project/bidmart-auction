@@ -27,7 +27,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import org.springframework.context.annotation.Import;
+
 @WebMvcTest(AuctionController.class)
+@Import(GlobalExceptionHandler.class)
 class AuctionControllerTest {
 
     @Autowired
@@ -103,7 +106,9 @@ class AuctionControllerTest {
                 .thenThrow(new NoSuchElementException("Auction not found"));
 
         mockMvc.perform(get("/api/auctions/invalid-id"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Auction not found"));
     }
 
     @Test
@@ -147,7 +152,8 @@ class AuctionControllerTest {
                         .requestAttr("userId", "seller-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Validation Failed"));
     }
 
     @Test
@@ -161,7 +167,9 @@ class AuctionControllerTest {
                         .requestAttr("userId", "seller-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Reserve price must be greater than starting price"));
     }
 
     @Test
@@ -184,7 +192,9 @@ class AuctionControllerTest {
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("Authorization", "Bearer seller-999")
                         .requestAttr("userId", "seller-999"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Only the owner can activate this auction"));
     }
 
     @Test
@@ -195,7 +205,9 @@ class AuctionControllerTest {
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("Authorization", "Bearer seller-001")
                         .requestAttr("userId", "seller-001"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Only DRAFT auctions can be activated"));
     }
 
     @Test
@@ -206,7 +218,9 @@ class AuctionControllerTest {
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("Authorization", "Bearer seller-001")
                         .requestAttr("userId", "seller-001"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Wallet error: Forbidden. Check your balance or permissions."));
     }
 
     @Test
@@ -217,7 +231,9 @@ class AuctionControllerTest {
         mockMvc.perform(patch("/api/auctions/auction-101/activate")
                         .header("Authorization", "Bearer seller-001")
                         .requestAttr("userId", "seller-001"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.message").value("Wallet service is currently unavailable."));
     }
 
     @Test
@@ -249,7 +265,9 @@ class AuctionControllerTest {
                         .requestAttr("userId", "buyer-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\": 500000}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Auction is not active"));
     }
 
     @Test
@@ -262,7 +280,9 @@ class AuctionControllerTest {
                         .requestAttr("userId", "buyer-001")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\": 100}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Bid amount must be at least 500000"));
     }
 
     @Test
@@ -301,6 +321,8 @@ class AuctionControllerTest {
                 .thenThrow(new NoSuchElementException("Auction not found"));
 
         mockMvc.perform(get("/api/auctions/invalid-id/bids"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Auction not found"));
     }
 }

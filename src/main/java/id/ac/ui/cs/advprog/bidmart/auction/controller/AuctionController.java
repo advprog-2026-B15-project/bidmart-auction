@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/auctions")
@@ -53,33 +52,6 @@ public class AuctionController {
             @RequestAttribute("userId") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.activate(id, sellerId));
         return ResponseEntity.ok(res);
-    }
-
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<String> handleNotFound(NoSuchElementException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleBadRequest(IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<String> handleBadState(IllegalStateException e) {
-        String msg = e.getMessage();
-        if (msg.toLowerCase().contains("owner")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(msg);
-        }
-        
-        if (msg.contains("403")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wallet error: Forbidden. Check your balance or permissions.");
-        }
-        if (msg.contains("500")) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Wallet service is currently unavailable.");
-        }
-        
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(msg);
     }
 
     @PostMapping("/{id}/bids")
