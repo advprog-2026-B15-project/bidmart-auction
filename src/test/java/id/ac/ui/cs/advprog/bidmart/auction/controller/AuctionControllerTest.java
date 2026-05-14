@@ -131,7 +131,6 @@ class AuctionControllerTest {
 
     @Test
     void testCreateAuctionMissingSellerId() throws Exception {
-        // tanpa Header Authorization, akan kena 401 dari Interceptor
         mockMvc.perform(post("/api/auctions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

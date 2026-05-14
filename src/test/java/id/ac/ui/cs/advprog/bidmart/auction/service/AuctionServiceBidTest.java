@@ -51,7 +51,6 @@ class AuctionServiceBidTest {
 
     @BeforeEach
     void setUp() {
-        // Gunakan Reflection untuk set field list agar tidak null
         org.springframework.test.util.ReflectionTestUtils.setField(auctionService, "validationStrategies", validationStrategies);
         
         auction = new Auction();
@@ -61,7 +60,6 @@ class AuctionServiceBidTest {
         auction.setStatus(AuctionStatus.ACTIVE);
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
 
-        // Mock LockTemplate behavior - gunakan any() untuk semua parameter agar pasti match
         lenient().when(lockTemplate.executeWithLock(any(), anyLong(), anyLong(), any(), any()))
                 .thenAnswer(invocation -> {
                     LockCallback<?> callback = invocation.getArgument(4);
@@ -101,7 +99,6 @@ class AuctionServiceBidTest {
 
     @Test
     void testPlaceBidAntiSnipingTriggered() {
-        // Set end time to 1 minute from now (within 2 mins)
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(1));
         OffsetDateTime originalEnd = auction.getEndTime();
 
@@ -110,7 +107,6 @@ class AuctionServiceBidTest {
 
         auctionService.placeBid("auction-123", "bidder-1", 150000L);
 
-        // Check if end time extended by 2 minutes
         assertTrue(auction.getEndTime().isAfter(originalEnd));
         assertEquals(AuctionStatus.EXTENDED, auction.getStatus());
     }

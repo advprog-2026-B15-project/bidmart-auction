@@ -99,8 +99,6 @@ class AuctionServiceTest {
         verify(auctionRepository, never()).save(any());
     }
 
-    // ===== FIND =====
-
     @Test
     void testFindAllAuctions() {
         Auction auction2 = new Auction();
