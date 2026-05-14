@@ -4,6 +4,9 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -27,36 +30,21 @@ public class WalletRestAdapter implements HoldBalancePort {
     }
 
     @Override
+    @Retryable(
+        retryFor = { IllegalStateException.class },
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2.0)
+    )
     public void holdBalance(String userId, String auctionId, Long amount) {
-        executeWithRetry("/internal/wallet/hold", userId, auctionId, amount);
-    }
-
-    private void executeWithRetry(String path, String userId, String auctionId, Long amount) {
-        int attempt = 0;
-        while (true) {
-            try {
-                sendWalletRequest(path, userId, auctionId, amount);
-                return;
-            } catch (IllegalStateException e) {
-                attempt++;
-                if (isClientError(e) || attempt >= MAX_RETRIES) {
-                    log.error("Wallet operation failed after {} attempt(s): {}", attempt, e.getMessage());
-                    throw e;
-                }
-                log.warn("Wallet operation failed (attempt {}/{}), retrying in {}ms: {}",
-                        attempt, MAX_RETRIES, RETRY_DELAY_MS, e.getMessage());
-                sleep(RETRY_DELAY_MS);
-            }
-        }
-    }
-
-    private void sendWalletRequest(String path, String userId, String auctionId, Long amount) {
+        String path = "/internal/wallet/hold";
         String endpoint = walletServiceUrl + path;
+        String idempotencyKey = auctionId + "-" + userId;
 
         Map<String, Object> requestBody = Map.of(
                 "userId", userId,
                 "auctId", auctionId,
-                "amount", amount
+                "amount", amount,
+                "idempotencyKey", idempotencyKey
         );
 
         restClient.post()
@@ -66,7 +54,7 @@ public class WalletRestAdapter implements HoldBalancePort {
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError(),
                     (request, response) -> {
-                    throw new IllegalStateException("Client error (" + path + "): " + response.getStatusCode());
+                    throw new IllegalArgumentException("Client error (" + path + "): " + response.getStatusCode());
                 })
                 .onStatus(status -> status.is5xxServerError(),
                     (request, response) -> {
@@ -75,16 +63,10 @@ public class WalletRestAdapter implements HoldBalancePort {
                 .toBodilessEntity();
     }
 
-    private boolean isClientError(IllegalStateException e) {
-        return e.getMessage() != null && e.getMessage().startsWith("Client error");
-    }
-
-    private void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Retry interrupted", e);
-        }
+    @Recover
+    public void holdBalanceFallback(IllegalStateException e, String userId, String auctionId, Long amount) {
+        log.error("Failed to hold balance for user={} auction={} after retries: {}", 
+                userId, auctionId, e.getMessage());
+        throw e;
     }
 }
