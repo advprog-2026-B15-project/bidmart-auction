@@ -15,6 +15,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 
 @RestController
 @RequestMapping("/api/auctions")
@@ -25,11 +29,13 @@ public class AuctionController {
     private final AuctionService auctionService;
 
     @GetMapping
-    public ResponseEntity<List<AuctionResponse>> findAll() {
-        List<AuctionResponse> auctions = auctionService.findAll()
-                .stream()
-                .map(AuctionResponse::from)
-                .toList();
+    public ResponseEntity<Page<AuctionResponse>> findAll(
+            @PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) AuctionStatus status,
+            @RequestParam(required = false) Long minPrice,
+            @RequestParam(required = false) Long maxPrice) {
+        Page<AuctionResponse> auctions = auctionService.findAll(pageable, status, minPrice, maxPrice)
+                .map(AuctionResponse::from);
         return ResponseEntity.ok(auctions);
     }
 

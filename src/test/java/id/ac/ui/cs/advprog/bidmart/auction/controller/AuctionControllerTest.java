@@ -80,14 +80,15 @@ class AuctionControllerTest {
 
     @Test
     void testFindAllAuctions() throws Exception {
-        when(auctionService.findAll()).thenReturn(Arrays.asList(auction));
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction));
+        when(auctionService.findAll(any(), any(), any(), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/auctions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("auction-101"))
-                .andExpect(jsonPath("$[0].title").value("Vintage Camera"));
+                .andExpect(jsonPath("$.content[0].id").value("auction-101"))
+                .andExpect(jsonPath("$.content[0].title").value("Vintage Camera"));
 
-        verify(auctionService, times(1)).findAll();
+        verify(auctionService, times(1)).findAll(any(), any(), any(), any());
     }
 
     @Test

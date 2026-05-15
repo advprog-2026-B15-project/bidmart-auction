@@ -11,6 +11,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -31,6 +32,7 @@ public class AuctionClosureDatabaseService {
     private final AuctionEventPort auctionEventPort;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @CacheEvict(value = "auction", key = "#auctionId")
     public void closeAuction(String auctionId, OffsetDateTime closedAt) {
         Auction auction = auctionRepository.findById(auctionId).orElse(null);
         if (auction == null
@@ -81,9 +83,6 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        // Publish event SETELAH transaksi commit agar consumer tidak baca stale state.
-        // Jika method ini dipanggil di luar transaksi aktif, publishWinnerDetermined
-        // dipanggil langsung (fallback).
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
@@ -119,7 +118,6 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        // Publish event SETELAH transaksi commit agar consumer tidak baca stale state.
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

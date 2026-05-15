@@ -104,12 +104,13 @@ class AuctionServiceTest {
         Auction auction2 = new Auction();
         auction2.setTitle("Mechanical Keyboard");
 
-        when(auctionRepository.findAll()).thenReturn(Arrays.asList(auction, auction2));
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction, auction2));
+        when(auctionRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
 
-        List<Auction> result = auctionService.findAll();
+        org.springframework.data.domain.Page<Auction> result = auctionService.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null);
 
-        assertEquals(2, result.size());
-        verify(auctionRepository, times(1)).findAll();
+        assertEquals(2, result.getContent().size());
+        verify(auctionRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
     }
 
     @Test
