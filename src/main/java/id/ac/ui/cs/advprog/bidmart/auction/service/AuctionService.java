@@ -35,6 +35,7 @@ public class AuctionService {
     private final HoldBalancePort holdBalancePort;
     private final AuctionEventPort auctionEventPort;
     private final DistributedLockTemplate lockTemplate;
+    private final SseEmitterService sseEmitterService;
 
     public Page<Auction> findAll(Pageable pageable, AuctionStatus status, Long minPrice, Long maxPrice) {
         return auctionRepository.findAll(AuctionSpecification.filterBy(status, minPrice, maxPrice), pageable);
@@ -138,7 +139,17 @@ public class AuctionService {
                             .itemName(auction.getTitle())
                             .build())
                     .build();
-            auctionEventPort.publishBidPlaced(event); // publish event
+            auctionEventPort.publishBidPlaced(event);
+
+            // broadcast ke SSE subscribers
+            java.util.Map<String, Object> broadcastPayload = new java.util.HashMap<>();
+            broadcastPayload.put("bidId", bid.getId() != null ? bid.getId() : "");
+            broadcastPayload.put("auctionId", auction.getId());
+            broadcastPayload.put("bidderId", bidderId);
+            broadcastPayload.put("amount", amount);
+            broadcastPayload.put("currentPrice", auction.getCurrentPrice() != null ? auction.getCurrentPrice() : 0L);
+            broadcastPayload.put("endTime", auction.getEndTime() != null ? auction.getEndTime().toString() : "");
+            sseEmitterService.broadcast(auctionId, broadcastPayload);
 
             return bid;
         });

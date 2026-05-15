@@ -25,6 +25,16 @@ class AuctionServiceTest {
 
     @Mock
     private AuctionRepository auctionRepository;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository bidRepository;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort holdBalancePort;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort auctionEventPort;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate lockTemplate;
+    @Mock
+    private SseEmitterService sseEmitterService;
 
     @InjectMocks
     private AuctionService auctionService;
