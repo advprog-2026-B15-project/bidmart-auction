@@ -1,6 +1,5 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
-import id.ac.ui.cs.advprog.bidmart.auction.config.RedisCacheConfig;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
@@ -9,8 +8,6 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
@@ -28,7 +25,6 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.lock.LockCallback;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -120,7 +116,7 @@ class AuctionServiceCacheTest {
     }
 
     @Test
-    void testPlaceBidEvictsCaches() throws Exception {
+    void testPlaceBidEvictsCaches() {
         auctionService.findById("auc-123");
         auctionService.getBidHistory("auc-123");
 

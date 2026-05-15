@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AuctionSpecification {
+    
+    private AuctionSpecification() {
+        // Utility class
+    }
 
     public static Specification<Auction> filterBy(AuctionStatus status, Long minPrice, Long maxPrice) {
         return (root, query, criteriaBuilder) -> {

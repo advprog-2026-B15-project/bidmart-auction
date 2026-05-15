@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String BAD_REQUEST = "Bad Request";
+
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NoSuchElementException e) {
         return ResponseEntity
@@ -25,7 +27,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException e) {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "Bad Request", e.getMessage()));
+                .body(new ErrorResponse(400, BAD_REQUEST, e.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -52,7 +54,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "Bad Request", msg));
+                .body(new ErrorResponse(400, BAD_REQUEST, msg));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -69,7 +71,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "Bad Request", "Required request body is missing or unreadable."));
+                .body(new ErrorResponse(400, BAD_REQUEST, "Required request body is missing or unreadable."));
     }
 
     @ExceptionHandler(Exception.class)

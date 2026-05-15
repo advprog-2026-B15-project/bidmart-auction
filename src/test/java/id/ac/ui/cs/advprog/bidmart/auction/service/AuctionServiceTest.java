@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -111,6 +110,17 @@ class AuctionServiceTest {
 
         assertEquals(2, result.getContent().size());
         verify(auctionRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void testFindAllAuctionsWithFilters() {
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction));
+        when(auctionRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+        org.springframework.data.domain.Page<Auction> result = auctionService.findAll(org.springframework.data.domain.Pageable.unpaged(), AuctionStatus.ACTIVE, 100L, 500L);
+
+        assertNotNull(result);
+        verify(auctionRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
     }
 
     @Test

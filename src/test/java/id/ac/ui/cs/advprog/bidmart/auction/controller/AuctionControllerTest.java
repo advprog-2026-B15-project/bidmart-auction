@@ -92,6 +92,23 @@ class AuctionControllerTest {
     }
 
     @Test
+    void testFindAllWithFilters() throws Exception {
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction));
+        when(auctionService.findAll(any(), eq(AuctionStatus.ACTIVE), eq(100L), eq(500L))).thenReturn(page);
+
+        mockMvc.perform(get("/api/auctions")
+                        .param("status", "ACTIVE")
+                        .param("minPrice", "100")
+                        .param("maxPrice", "500")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value("auction-101"));
+
+        verify(auctionService).findAll(any(), eq(AuctionStatus.ACTIVE), eq(100L), eq(500L));
+    }
+
+    @Test
     void testFindByIdSuccess() throws Exception {
         when(auctionService.findById("auction-101")).thenReturn(auction);
 

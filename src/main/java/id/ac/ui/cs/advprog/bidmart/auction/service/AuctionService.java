@@ -42,6 +42,10 @@ public class AuctionService {
 
     @Cacheable(value = "auction", key = "#id")
     public Auction findById(String id) {
+        return getAuctionOrThrow(id);
+    }
+
+    private Auction getAuctionOrThrow(String id) {
         return auctionRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Auction not found"));
     }
@@ -66,7 +70,7 @@ public class AuctionService {
 
     @CacheEvict(value = "auction", key = "#auctionId")
     public Auction activate(String auctionId, String sellerId) {
-        Auction auction = findById(auctionId);
+        Auction auction = getAuctionOrThrow(auctionId);
 
         if (!auction.getSellerId().equals(sellerId)) {
             throw new IllegalStateException("Only the owner can activate this auction");
@@ -84,7 +88,7 @@ public class AuctionService {
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
         return lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-            Auction auction = findById(auctionId);
+            Auction auction = getAuctionOrThrow(auctionId);
 
             for (BidValidationStrategy strategy : validationStrategies) {
                 strategy.validate(auction, amount);
@@ -142,7 +146,7 @@ public class AuctionService {
 
     @Cacheable(value = "bidHistory", key = "#auctionId")
     public List<Bid> getBidHistory(String auctionId) {
-        findById(auctionId);
+        getAuctionOrThrow(auctionId);
         return bidRepository.findBidHistory(auctionId);
     }
 }
