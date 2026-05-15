@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.bidmart.auction.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
@@ -32,6 +33,7 @@ public class SseEmitterService {
         return emitter;
     }
 
+    @Async("notificationExecutor")
     public void broadcast(String auctionId, Object payload) {
         CopyOnWriteArrayList<SseEmitter> emitters = emittersMap.get(auctionId);
         if (emitters != null) {
