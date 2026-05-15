@@ -13,12 +13,17 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrateg
 import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.List;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionSpecification;
 
 @Service
 @RequiredArgsConstructor
@@ -31,11 +36,16 @@ public class AuctionService {
     private final AuctionEventPort auctionEventPort;
     private final DistributedLockTemplate lockTemplate;
 
-    public List<Auction> findAll() {
-        return auctionRepository.findAll();
+    public Page<Auction> findAll(Pageable pageable, AuctionStatus status, Long minPrice, Long maxPrice) {
+        return auctionRepository.findAll(AuctionSpecification.filterBy(status, minPrice, maxPrice), pageable);
     }
 
+    @Cacheable(value = "auction", key = "#id")
     public Auction findById(String id) {
+        return getAuctionOrThrow(id);
+    }
+
+    private Auction getAuctionOrThrow(String id) {
         return auctionRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Auction not found"));
     }
@@ -58,8 +68,9 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
+    @CacheEvict(value = "auction", key = "#auctionId")
     public Auction activate(String auctionId, String sellerId) {
-        Auction auction = findById(auctionId);
+        Auction auction = getAuctionOrThrow(auctionId);
 
         if (!auction.getSellerId().equals(sellerId)) {
             throw new IllegalStateException("Only the owner can activate this auction");
@@ -73,10 +84,11 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
+    @CacheEvict(value = {"auction", "bidHistory"}, key = "#auctionId")
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
         return lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-            Auction auction = findById(auctionId);
+            Auction auction = getAuctionOrThrow(auctionId);
 
             for (BidValidationStrategy strategy : validationStrategies) {
                 strategy.validate(auction, amount);
@@ -88,7 +100,6 @@ public class AuctionService {
                 previousBidderId = history.get(0).getBidderId();
             }
 
-            // tahan reservasi saldo dompet penawar baru
             holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
             // anti-sniping
@@ -133,8 +144,9 @@ public class AuctionService {
         });
     }
 
+    @Cacheable(value = "bidHistory", key = "#auctionId")
     public List<Bid> getBidHistory(String auctionId) {
-        findById(auctionId);
+        getAuctionOrThrow(auctionId);
         return bidRepository.findBidHistory(auctionId);
     }
 }
