@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -46,14 +48,25 @@ class AuctionServiceBidTest {
     @Mock
     private SseEmitterService sseEmitterService;
 
-    @InjectMocks
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private AuctionService auctionService;
 
     private Auction auction;
 
     @BeforeEach
     void setUp() {
-        org.springframework.test.util.ReflectionTestUtils.setField(auctionService, "validationStrategies", validationStrategies);
+        auctionService = new AuctionService(
+            auctionRepository,
+            bidRepository,
+            validationStrategies,
+            holdBalancePort,
+            auctionEventPort,
+            lockTemplate,
+            sseEmitterService,
+            meterRegistry
+        );
+        auctionService.initMetrics();
         
         auction = new Auction();
         auction.setId("auction-123");

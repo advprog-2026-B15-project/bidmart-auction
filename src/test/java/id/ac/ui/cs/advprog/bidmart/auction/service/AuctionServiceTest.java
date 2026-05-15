@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,8 +37,9 @@ class AuctionServiceTest {
     private id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate lockTemplate;
     @Mock
     private SseEmitterService sseEmitterService;
+    
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    @InjectMocks
     private AuctionService auctionService;
 
     private Auction auction;
@@ -44,6 +47,18 @@ class AuctionServiceTest {
 
     @BeforeEach
     void setUp() {
+        auctionService = new AuctionService(
+            auctionRepository,
+            bidRepository,
+            java.util.Collections.emptyList(),
+            holdBalancePort,
+            auctionEventPort,
+            lockTemplate,
+            sseEmitterService,
+            meterRegistry
+        );
+        auctionService.initMetrics();
+
         auction = new Auction();
         auction.setId("auction-101");
         auction.setListingId("listing-001");

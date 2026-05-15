@@ -24,6 +24,10 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionSpecification;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +40,24 @@ public class AuctionService {
     private final AuctionEventPort auctionEventPort;
     private final DistributedLockTemplate lockTemplate;
     private final SseEmitterService sseEmitterService;
+    private final MeterRegistry meterRegistry;
+
+    private Counter bidPlacedCounter;
+    private Timer bidLatencyTimer;
+
+    @PostConstruct
+    public void initMetrics() {
+        bidPlacedCounter = Counter.builder("auction.bids.placed")
+                .description("Total number of bids placed successfully")
+                .register(meterRegistry);
+        bidLatencyTimer = Timer.builder("auction.bid.latency")
+                .description("Time taken to place a bid end-to-end")
+                .register(meterRegistry);
+        io.micrometer.core.instrument.Gauge.builder("auction.active.count", auctionRepository,
+                repo -> repo.countByStatusIn(List.of(AuctionStatus.ACTIVE, AuctionStatus.EXTENDED)))
+                .description("Number of currently active or extended auctions")
+                .register(meterRegistry);
+    }
 
     public Page<Auction> findAll(Pageable pageable, AuctionStatus status, Long minPrice, Long maxPrice) {
         return auctionRepository.findAll(AuctionSpecification.filterBy(status, minPrice, maxPrice), pageable);
@@ -88,21 +110,25 @@ public class AuctionService {
     @CacheEvict(value = {"auction", "bidHistory"}, key = "#auctionId")
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
-        return lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-            Auction auction = getAuctionOrThrow(auctionId);
+        return bidLatencyTimer.record(() -> {
+            Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
+                Auction auction = getAuctionOrThrow(auctionId);
 
-            for (BidValidationStrategy strategy : validationStrategies) {
-                strategy.validate(auction, amount);
-            }
+                for (BidValidationStrategy strategy : validationStrategies) {
+                    strategy.validate(auction, amount);
+                }
 
-            String previousBidderId = getPreviousBidderId(auctionId);
-            holdBalancePort.holdBalance(bidderId, auctionId, amount);
+                String previousBidderId = getPreviousBidderId(auctionId);
+                holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
-            handleAntiSniping(auction);
-            Bid bid = createAndSaveBid(auction, bidderId, amount);
-            publishBidEvents(auction, bid, previousBidderId);
+                handleAntiSniping(auction);
+                Bid bid = createAndSaveBid(auction, bidderId, amount);
+                publishBidEvents(auction, bid, previousBidderId);
 
-            return bid;
+                return bid;
+            });
+            bidPlacedCounter.increment();
+            return result;
         });
     }
 

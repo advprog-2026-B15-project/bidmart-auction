@@ -19,4 +19,6 @@ public interface AuctionRepository extends JpaRepository<Auction, String>, JpaSp
 
     @Query("SELECT a FROM Auction a WHERE a.status IN :statuses AND a.endTime < :now")
     List<Auction> findExpiredByStatuses(@Param("statuses") List<AuctionStatus> statuses, @Param("now") OffsetDateTime now);
+
+    long countByStatusIn(List<AuctionStatus> statuses);
 }
