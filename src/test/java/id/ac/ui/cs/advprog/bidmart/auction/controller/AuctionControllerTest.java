@@ -8,6 +8,8 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
 import id.ac.ui.cs.advprog.bidmart.auction.service.JwtService;
+import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +42,10 @@ class AuctionControllerTest {
     private AuctionService auctionService;
 
     @MockitoBean
-    private JwtService jwtService; 
+    private JwtService jwtService;
+
+    @MockitoBean
+    private SseEmitterService sseEmitterService;
 
     private ObjectMapper objectMapper;
     private Auction auction;
@@ -342,5 +347,14 @@ class AuctionControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Auction not found"));
+    }
+
+    @Test
+    void testStreamAuctionReturnsOk() throws Exception {
+        when(sseEmitterService.subscribe("auction-101")).thenReturn(new SseEmitter());
+
+        mockMvc.perform(get("/api/auctions/auction-101/stream")
+                        .accept(org.springframework.http.MediaType.TEXT_EVENT_STREAM))
+                .andExpect(status().isOk());
     }
 }

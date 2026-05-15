@@ -72,6 +72,9 @@ class AuctionServiceCacheTest {
     @MockitoBean
     private JwtService jwtService;
 
+    @MockitoBean
+    private SseEmitterService sseEmitterService;
+
     private Auction auction;
 
     @BeforeEach

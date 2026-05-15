@@ -54,6 +54,9 @@ class BidServiceTest {
     @Mock
     private DistributedLockTemplate lockTemplate;
 
+    @Mock
+    private SseEmitterService sseEmitterService;
+
     @InjectMocks
     private AuctionService auctionService;
 

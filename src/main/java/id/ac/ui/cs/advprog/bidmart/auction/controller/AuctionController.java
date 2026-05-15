@@ -19,6 +19,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
+import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/auctions")
@@ -27,6 +30,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 public class AuctionController {
 
     private final AuctionService auctionService;
+    private final SseEmitterService sseEmitterService;
 
     @GetMapping
     public ResponseEntity<Page<AuctionResponse>> findAll(
@@ -79,5 +83,12 @@ public class AuctionController {
                 .map(BidResponse::from)
                 .toList();
         return ResponseEntity.ok(bids);
+    }
+
+    @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Subscribe to live auction updates",
+        description = "Returns an SSE stream that pushes bid updates in real-time.")
+    public SseEmitter streamAuction(@PathVariable String id) {
+        return sseEmitterService.subscribe(id);
     }
 }

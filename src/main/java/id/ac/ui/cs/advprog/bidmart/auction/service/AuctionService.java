@@ -35,6 +35,7 @@ public class AuctionService {
     private final HoldBalancePort holdBalancePort;
     private final AuctionEventPort auctionEventPort;
     private final DistributedLockTemplate lockTemplate;
+    private final SseEmitterService sseEmitterService;
 
     public Page<Auction> findAll(Pageable pageable, AuctionStatus status, Long minPrice, Long maxPrice) {
         return auctionRepository.findAll(AuctionSpecification.filterBy(status, minPrice, maxPrice), pageable);
@@ -94,54 +95,72 @@ public class AuctionService {
                 strategy.validate(auction, amount);
             }
 
-            String previousBidderId = null;
-            List<Bid> history = bidRepository.findBidHistory(auctionId);
-            if (!history.isEmpty()) {
-                previousBidderId = history.get(0).getBidderId();
-            }
-
+            String previousBidderId = getPreviousBidderId(auctionId);
             holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
-            // anti-sniping
-            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
-                auction.setEndTime(auction.getEndTime().plusMinutes(2));
-                if (auction.getStatus() == AuctionStatus.ACTIVE) {
-                    auction.setStatus(AuctionStatus.EXTENDED);
-                }
-            }
-
-            // simpan state
-            Bid bid = new Bid();
-            bid.setAuction(auction);
-            bid.setBidderId(bidderId);
-            bid.setAmount(amount);
-            bidRepository.save(bid);
-
-            auction.setCurrentPrice(amount);
-            auctionRepository.save(auction);
-
-            BidPlacedEvent event = BidPlacedEvent.builder()
-                    .eventId(java.util.UUID.randomUUID().toString())
-                    .eventType("BidPlaced")
-                    .eventVersion(1)
-                    .occurredAt(now)
-                    .source("bidmart-auction")
-                    .payload(BidPlacedEvent.Payload.builder()
-                            .bidId(bid.getId())
-                            .auctionId(auction.getId())
-                            .listingId(auction.getListingId())
-                            .sellerUserId(auction.getSellerId())
-                            .bidderUserId(bidderId)
-                            .previousBidderUserId(previousBidderId)
-                            .bidAmount(amount)
-                            .itemName(auction.getTitle())
-                            .build())
-                    .build();
-            auctionEventPort.publishBidPlaced(event); // publish event
+            handleAntiSniping(auction);
+            Bid bid = createAndSaveBid(auction, bidderId, amount);
+            publishBidEvents(auction, bid, previousBidderId);
 
             return bid;
         });
+    }
+
+    private String getPreviousBidderId(String auctionId) {
+        List<Bid> history = bidRepository.findBidHistory(auctionId);
+        return history.isEmpty() ? null : history.get(0).getBidderId();
+    }
+
+    private void handleAntiSniping(Auction auction) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
+            auction.setEndTime(auction.getEndTime().plusMinutes(2));
+            if (auction.getStatus() == AuctionStatus.ACTIVE) {
+                auction.setStatus(AuctionStatus.EXTENDED);
+            }
+        }
+    }
+
+    private Bid createAndSaveBid(Auction auction, String bidderId, Long amount) {
+        Bid bid = new Bid();
+        bid.setAuction(auction);
+        bid.setBidderId(bidderId);
+        bid.setAmount(amount);
+        bidRepository.save(bid);
+
+        auction.setCurrentPrice(amount);
+        auctionRepository.save(auction);
+        return bid;
+    }
+
+    private void publishBidEvents(Auction auction, Bid bid, String previousBidderId) {
+        BidPlacedEvent event = BidPlacedEvent.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .eventType("BidPlaced")
+                .eventVersion(1)
+                .occurredAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .source("bidmart-auction")
+                .payload(BidPlacedEvent.Payload.builder()
+                        .bidId(bid.getId())
+                        .auctionId(auction.getId())
+                        .listingId(auction.getListingId())
+                        .sellerUserId(auction.getSellerId())
+                        .bidderUserId(bid.getBidderId())
+                        .previousBidderUserId(previousBidderId)
+                        .bidAmount(bid.getAmount())
+                        .itemName(auction.getTitle())
+                        .build())
+                .build();
+        auctionEventPort.publishBidPlaced(event);
+
+        java.util.Map<String, Object> broadcastPayload = new java.util.HashMap<>();
+        broadcastPayload.put("bidId", bid.getId() != null ? bid.getId() : "");
+        broadcastPayload.put("auctionId", auction.getId());
+        broadcastPayload.put("bidderId", bid.getBidderId());
+        broadcastPayload.put("amount", bid.getAmount());
+        broadcastPayload.put("currentPrice", auction.getCurrentPrice() != null ? auction.getCurrentPrice() : 0L);
+        broadcastPayload.put("endTime", auction.getEndTime() != null ? auction.getEndTime().toString() : "");
+        sseEmitterService.broadcast(auction.getId(), broadcastPayload);
     }
 
     @Cacheable(value = "bidHistory", key = "#auctionId")
