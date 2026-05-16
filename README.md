@@ -1,4 +1,4 @@
-# BidMart — Auction Service
+# BidMart Auction Service
 
 ![Java](https://img.shields.io/badge/Java-21-orange?logo=java)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-green?logo=springboot)
@@ -9,25 +9,12 @@
 
 Auction Service is the core microservice of the **BidMart** platform. It manages the full lifecycle of auction items, from creation through bidding to final winner determination, while ensuring fairness through distributed locking and anti-sniping mechanisms.
 
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Local Setup](#local-setup)
-- [Auction Lifecycle](#auction-lifecycle)
-- [API Reference](#api-reference)
-- [Postman Collection](#postman-collection)
-- [Swagger & Monitoring Links](#swagger--monitoring-links)
-- [Running Tests](#running-tests)
-- [CI/CD](#cicd)
-
 ## Architecture Overview
 
 ```mermaid
 graph TD
     Client["Client / Frontend"]
-    Gateway["API Gateway\n(Validates JWT → forwards X-User-Id)"]
+    Gateway["API Gateway\n(Validates JWT -> forwards X-User-Id)"]
     AuctionSvc["Auction Service :8083"]
     Interceptor["AuthInterceptor\n(Reads X-User-Id header)"]
     Controller["AuctionController"]
@@ -135,14 +122,14 @@ stateDiagram-v2
     DRAFT --> ACTIVE : Seller activates
     DRAFT --> DRAFT : Seller edits details
 
-    ACTIVE --> EXTENDED : Bid received in last 2 min\n(Anti-Sniping)
+    ACTIVE --> EXTENDED : Bid received in last 2 min (Anti-Sniping)
     ACTIVE --> CLOSED : End time reached
 
     EXTENDED --> EXTENDED : Bid received in last 2 min
     EXTENDED --> CLOSED : End time reached
 
-    CLOSED --> WON : Reserve price met\n(Highest bid wins)
-    CLOSED --> UNSOLD : Reserve price not met\nor no bids
+    CLOSED --> WON : Reserve price met (Highest bid wins)
+    CLOSED --> UNSOLD : Reserve price not met or no bids
 
     WON --> [*]
     UNSOLD --> [*]
