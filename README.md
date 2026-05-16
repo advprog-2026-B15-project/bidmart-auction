@@ -76,8 +76,6 @@ graph TD
 | Test | JUnit 5, Mockito, H2 (in-memory) |
 | CI/CD | GitHub Actions + SonarCloud |
 
----
-
 ## Prerequisites
 
 - **JDK 21** [Download](https://adoptium.net/)
