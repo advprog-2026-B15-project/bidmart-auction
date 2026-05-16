@@ -80,11 +80,12 @@ class AuctionClosingSchedulerTest {
     void closeExpiredAuctions_delegatesToClosureServiceForEachAuction() {
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(Arrays.asList(auction1, auction2));
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         scheduler.closeExpiredAuctions();
 
-        verify(auctionClosureService).processAuctionClosure(eq(auction1), any(OffsetDateTime.class));
-        verify(auctionClosureService).processAuctionClosure(eq(auction2), any(OffsetDateTime.class));
+        verify(auctionClosureService).processMarkAsClosed(eq(auction1), any(OffsetDateTime.class));
+        verify(auctionClosureService).processMarkAsClosed(eq(auction2), any(OffsetDateTime.class));
         verifyNoMoreInteractions(auctionClosureService);
     }
 
@@ -92,6 +93,7 @@ class AuctionClosingSchedulerTest {
     void closeExpiredAuctions_noExpiredAuctions_doesNotDelegate() {
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(Collections.emptyList());
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         scheduler.closeExpiredAuctions();
 
@@ -102,13 +104,14 @@ class AuctionClosingSchedulerTest {
     void closeExpiredAuctions_closureServiceThrows_continuesProcessingOthers() {
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(Arrays.asList(auction1, auction2));
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         doThrow(new RuntimeException("DB error"))
-                .when(auctionClosureService).processAuctionClosure(eq(auction1), any(OffsetDateTime.class));
+                .when(auctionClosureService).processMarkAsClosed(eq(auction1), any(OffsetDateTime.class));
 
         scheduler.closeExpiredAuctions();
 
-        verify(auctionClosureService).processAuctionClosure(eq(auction2), any(OffsetDateTime.class));
+        verify(auctionClosureService).processMarkAsClosed(eq(auction2), any(OffsetDateTime.class));
     }
 
     @Test
@@ -119,11 +122,12 @@ class AuctionClosingSchedulerTest {
 
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(Arrays.asList(auction1, auction2, auction3));
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         scheduler.closeExpiredAuctions();
 
         verify(auctionClosureService, times(3))
-                .processAuctionClosure(any(Auction.class), any(OffsetDateTime.class));
+                .processMarkAsClosed(any(Auction.class), any(OffsetDateTime.class));
     }
 
     @Test
@@ -135,6 +139,7 @@ class AuctionClosingSchedulerTest {
         List<Auction> threeAuctions = Arrays.asList(auction1, auction2, auction3);
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(threeAuctions);
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         CountDownLatch allStarted = new CountDownLatch(3);
         CountDownLatch proceed = new CountDownLatch(1);
@@ -145,7 +150,7 @@ class AuctionClosingSchedulerTest {
             allStarted.countDown(); 
             proceed.await(3, TimeUnit.SECONDS); 
             return null;
-        }).when(auctionClosureService).processAuctionClosure(any(), any());
+        }).when(auctionClosureService).processMarkAsClosed(any(), any());
 
         realExecutor = buildRealExecutor(3);
         AuctionClosingScheduler parallelScheduler = new AuctionClosingScheduler(
@@ -181,12 +186,13 @@ class AuctionClosingSchedulerTest {
 
         when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
                 .thenReturn(manyAuctions);
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.emptyList());
 
         AtomicInteger processedCount = new AtomicInteger(0);
         doAnswer(inv -> {
             processedCount.incrementAndGet();
             return null;
-        }).when(auctionClosureService).processAuctionClosure(any(), any());
+        }).when(auctionClosureService).processMarkAsClosed(any(), any());
 
         realExecutor = buildRealExecutor(10);
         AuctionClosingScheduler stressScheduler = new AuctionClosingScheduler(

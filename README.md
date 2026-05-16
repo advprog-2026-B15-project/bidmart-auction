@@ -227,9 +227,7 @@ A ready-to-use Postman collection is located at `postman/BidMart_auction_api.jso
 | **OpenAPI JSON** | [http://localhost:8083/v3/api-docs](http://localhost:8083/v3/api-docs) | Raw OpenAPI spec |
 | **Health Check** | [http://localhost:8083/actuator/health](http://localhost:8083/actuator/health) | Application health status |
 | **Prometheus Metrics** | [http://localhost:8083/actuator/prometheus](http://localhost:8083/actuator/prometheus) | Raw metrics endpoint |
-| **Grafana Dashboard** | `http://localhost:3000` | Monitoring dashboard (requires Docker Compose) |
-
-> See `docs/Tes_grafana_prometheus.md` for full Grafana + Prometheus setup guide.
+| **Grafana Dashboard** | [http://localhost:3000](http://localhost:3000) | Monitoring dashboard (requires Docker Compose) |
 
 ## Running Tests
 

@@ -47,35 +47,45 @@ class AuctionClosureServiceTest {
     }
 
     @Test
-    void processAuctionClosure_acquiresLockAndDelegatesToDatabaseService() {
-        auctionClosureService.processAuctionClosure(auction, now);
+    void processMarkAsClosed_acquiresLockAndDelegatesToDatabaseService() {
+        auctionClosureService.processMarkAsClosed(auction, now);
 
         verify(lockTemplate).executeWithLock(
                 eq("auction-lock-auc-1"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class));
 
-        verify(auctionClosureDatabaseService).closeAuction("auc-1", now);
+        verify(auctionClosureDatabaseService).markAsClosed("auc-1", now);
     }
 
     @Test
-    void processAuctionClosure_usesAuctionIdAsLockKey() {
+    void processMarkAsClosed_usesAuctionIdAsLockKey() {
         Auction anotherAuction = new Auction();
         anotherAuction.setId("auc-99");
         anotherAuction.setStatus(AuctionStatus.EXTENDED);
 
-        auctionClosureService.processAuctionClosure(anotherAuction, now);
+        auctionClosureService.processMarkAsClosed(anotherAuction, now);
 
         verify(lockTemplate).executeWithLock(
                 eq("auction-lock-auc-99"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class));
-        verify(auctionClosureDatabaseService).closeAuction("auc-99", now);
+        verify(auctionClosureDatabaseService).markAsClosed("auc-99", now);
     }
 
     @Test
-    void processAuctionClosure_databaseServiceThrows_exceptionPropagates() {
+    void processMarkAsClosed_databaseServiceThrows_exceptionPropagates() {
         doThrow(new RuntimeException("DB error"))
-                .when(auctionClosureDatabaseService).closeAuction(anyString(), any());
+                .when(auctionClosureDatabaseService).markAsClosed(anyString(), any());
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 RuntimeException.class,
-                () -> auctionClosureService.processAuctionClosure(auction, now));
+                () -> auctionClosureService.processMarkAsClosed(auction, now));
+    }
+    
+    @Test
+    void processEvaluateClosedAuction_delegatesToDatabaseService() {
+        auctionClosureService.processEvaluateClosedAuction(auction, now);
+
+        verify(lockTemplate).executeWithLock(
+                eq("auction-lock-auc-1"), anyLong(), anyLong(), any(TimeUnit.class), any(LockCallback.class));
+
+        verify(auctionClosureDatabaseService).evaluateClosedAuction("auc-1", now);
     }
 }
