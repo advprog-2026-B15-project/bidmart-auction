@@ -69,6 +69,29 @@ tasks.jacocoTestReport {
     }
 }
 
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/config/**",
+                    "**/dto/**",
+                    "**/*Application*",
+                    "**/BidmartAuctionApplication*"
+                )
+            }
+        })
+    )
+}
+
 tasks.test {
     finalizedBy(tasks.jacocoTestReport)
 }
