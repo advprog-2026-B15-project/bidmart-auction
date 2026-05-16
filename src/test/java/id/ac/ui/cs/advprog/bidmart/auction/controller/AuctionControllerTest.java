@@ -357,4 +357,25 @@ class AuctionControllerTest {
                         .accept(org.springframework.http.MediaType.TEXT_EVENT_STREAM))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void testPlaceBid_sellerBidsOnOwnAuction_returnsBadRequest() throws Exception {
+        when(auctionService.placeBid("auction-101", "seller-001", 500000L))
+                .thenThrow(new IllegalArgumentException("Seller cannot bid on own auction"));
+
+        mockMvc.perform(post("/api/auctions/auction-101/bids")
+                        .header("Authorization", "Bearer seller-001")
+                        .requestAttr("userId", "seller-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 500000}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Seller cannot bid on own auction"));
+    }
+
+    @Test
+    void testActivateAuction_withoutAuth_returnsUnauthorized() throws Exception {
+        mockMvc.perform(patch("/api/auctions/auction-101/activate"))
+                .andExpect(status().isUnauthorized());
+    }
 }

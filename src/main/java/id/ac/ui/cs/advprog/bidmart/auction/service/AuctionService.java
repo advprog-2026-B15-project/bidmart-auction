@@ -114,6 +114,10 @@ public class AuctionService {
             Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
                 Auction auction = getAuctionOrThrow(auctionId);
 
+                if (bidderId.equals(auction.getSellerId())) {
+                    throw new IllegalArgumentException("Seller cannot bid on own auction");
+                }
+
                 for (BidValidationStrategy strategy : validationStrategies) {
                     strategy.validate(auction, amount);
                 }

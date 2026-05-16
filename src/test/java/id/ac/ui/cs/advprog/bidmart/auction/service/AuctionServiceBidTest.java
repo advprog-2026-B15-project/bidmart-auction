@@ -149,4 +149,47 @@ class AuctionServiceBidTest {
         assertNotNull(result);
         verify(bidRepository).findBidHistory("auction-123");
     }
+
+    @Test
+    void testPlaceBid_sellerCannotBidOnOwnAuction() {
+        when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> auctionService.placeBid("auction-123", "seller-1", 100000L));
+
+        assertEquals("Seller cannot bid on own auction", ex.getMessage());
+        verify(holdBalancePort, never()).holdBalance(any(), any(), any());
+    }
+
+    @Test
+    void testPlaceBid_closedAuctionThrows() {
+        auction.setStatus(AuctionStatus.CLOSED);
+        validationStrategies.add((a, amount) -> {
+            if (a.getStatus() != AuctionStatus.ACTIVE && a.getStatus() != AuctionStatus.EXTENDED) {
+                throw new IllegalStateException("Auction is not active");
+            }
+        });
+
+        when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> auctionService.placeBid("auction-123", "bidder-1", 100000L));
+
+        assertEquals("Auction is not active", ex.getMessage());
+    }
+
+    @Test
+    void testPlaceBid_draftAuctionThrows() {
+        auction.setStatus(AuctionStatus.DRAFT);
+        validationStrategies.add((a, amount) -> {
+            if (a.getStatus() != AuctionStatus.ACTIVE && a.getStatus() != AuctionStatus.EXTENDED) {
+                throw new IllegalStateException("Auction is not active");
+            }
+        });
+
+        when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
+
+        assertThrows(IllegalStateException.class,
+                () -> auctionService.placeBid("auction-123", "bidder-1", 100000L));
+    }
 }
