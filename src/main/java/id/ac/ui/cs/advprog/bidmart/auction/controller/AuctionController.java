@@ -6,37 +6,50 @@ import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.PlaceBidRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
+import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
+import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
-import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auctions")
 @RequiredArgsConstructor
-@Tag(name = "Auction", description = "API for Auction Management")
+@Tag(name = "Auction", description = "API for managing auctions: create, activate, bid, and stream.")
 public class AuctionController {
 
     private final AuctionService auctionService;
     private final SseEmitterService sseEmitterService;
 
     @GetMapping
+    @Operation(
+        summary = "List all auctions",
+        description = "Returns a paginated list of auctions. Supports filtering by status and price range."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved auction list")
+    })
     public ResponseEntity<Page<AuctionResponse>> findAll(
             @PageableDefault(size = 10) Pageable pageable,
+            @Parameter(description = "Filter by auction status (DRAFT, ACTIVE, EXTENDED, CLOSED)")
             @RequestParam(required = false) AuctionStatus status,
+            @Parameter(description = "Minimum current price filter")
             @RequestParam(required = false) Long minPrice,
+            @Parameter(description = "Maximum current price filter")
             @RequestParam(required = false) Long maxPrice) {
         Page<AuctionResponse> auctions = auctionService.findAll(pageable, status, minPrice, maxPrice)
                 .map(AuctionResponse::from);
@@ -44,40 +57,81 @@ public class AuctionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AuctionResponse> findById(@PathVariable String id) {
+    @Operation(summary = "Get auction by ID", description = "Fetches the full detail of a specific auction.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Auction found"),
+        @ApiResponse(responseCode = "404", description = "Auction not found")
+    })
+    public ResponseEntity<AuctionResponse> findById(
+            @Parameter(description = "Auction ID (UUID)", required = true)
+            @PathVariable String id) {
         return ResponseEntity.ok(AuctionResponse.from(auctionService.findById(id)));
     }
 
     @PostMapping
+    @Operation(
+        summary = "Create a new auction",
+        description = "Creates an auction in DRAFT state. Seller identity is taken from the X-User-Id header (injected by API Gateway)."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Auction created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request body"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid X-User-Id header")
+    })
     public ResponseEntity<AuctionResponse> create(
             @Valid @RequestBody CreateAuctionRequest req,
-            @RequestAttribute("userId") String sellerId) {
+            @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.create(req, sellerId));
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
     }
 
     @PatchMapping("/{id}/activate")
+    @Operation(
+        summary = "Activate a draft auction",
+        description = "Transitions an auction from DRAFT to ACTIVE. Only the seller who created it can activate it."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Auction activated successfully"),
+        @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state"),
+        @ApiResponse(responseCode = "403", description = "Caller is not the auction owner"),
+        @ApiResponse(responseCode = "404", description = "Auction not found")
+    })
     public ResponseEntity<AuctionResponse> activate(
-            @PathVariable String id,
-            @RequestAttribute("userId") String sellerId) {
+            @Parameter(description = "Auction ID", required = true) @PathVariable String id,
+            @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.activate(id, sellerId));
         return ResponseEntity.ok(res);
     }
 
     @PostMapping("/{id}/bids")
-    @Operation(summary = "Place a new bid on an auction", 
-        description = "Submit a bid for a specific auction. Validates the amount " +
-        "and extends the auction time if placed within the last 2 minutes (Anti-Sniping).")
+    @Operation(
+        summary = "Place a bid on an auction",
+        description = "Submits a bid. Amount must exceed currentPrice + minimumIncrement. " +
+                      "If placed within the last 2 minutes, the auction end time is extended (Anti-Sniping rule). " +
+                      "Concurrent bids are protected by a Redisson distributed lock."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Bid placed successfully"),
+        @ApiResponse(responseCode = "400", description = "Amount too low, auction not active, or seller bidding own auction"),
+        @ApiResponse(responseCode = "401", description = "Missing X-User-Id header"),
+        @ApiResponse(responseCode = "404", description = "Auction not found")
+    })
     public ResponseEntity<BidResponse> placeBid(
-            @PathVariable String id,
+            @Parameter(description = "Auction ID", required = true) @PathVariable String id,
             @Valid @RequestBody PlaceBidRequest req,
-            @RequestAttribute("userId") String bidderId) {
+            @Parameter(hidden = true) @RequestAttribute("userId") String bidderId) {
         Bid bid = auctionService.placeBid(id, bidderId, req.getAmount());
         return ResponseEntity.status(HttpStatus.CREATED).body(BidResponse.from(bid));
     }
 
     @GetMapping("/{id}/bids")
-    public ResponseEntity<List<BidResponse>> getBidHistory(@PathVariable String id) {
+    @Operation(summary = "Get bid history", description = "Returns all bids for the given auction, sorted by amount descending.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Bid history retrieved"),
+        @ApiResponse(responseCode = "404", description = "Auction not found")
+    })
+    public ResponseEntity<List<BidResponse>> getBidHistory(
+            @Parameter(description = "Auction ID", required = true) @PathVariable String id) {
         List<BidResponse> bids = auctionService.getBidHistory(id)
                 .stream()
                 .map(BidResponse::from)
@@ -86,9 +140,17 @@ public class AuctionController {
     }
 
     @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @Operation(summary = "Subscribe to live auction updates",
-        description = "Returns an SSE stream that pushes bid updates in real-time.")
-    public SseEmitter streamAuction(@PathVariable String id) {
+    @Operation(
+        summary = "Subscribe to live auction updates (SSE)",
+        description = "Opens a Server-Sent Events stream. The server pushes a JSON bid event every time a new bid is placed on this auction."
+    )
+    @ApiResponse(
+        responseCode = "200", 
+        description = "SSE stream opened successfully",
+        content = @io.swagger.v3.oas.annotations.media.Content(mediaType = MediaType.TEXT_EVENT_STREAM_VALUE)
+    )
+    public SseEmitter streamAuction(
+            @Parameter(description = "Auction ID", required = true) @PathVariable String id) {
         return sseEmitterService.subscribe(id);
     }
 }
