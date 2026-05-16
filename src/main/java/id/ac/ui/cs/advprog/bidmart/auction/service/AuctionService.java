@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
@@ -104,6 +105,27 @@ public class AuctionService {
         }
 
         auction.setStatus(AuctionStatus.ACTIVE); 
+        return auctionRepository.save(auction);
+    }
+
+    @CacheEvict(value = "auction", key = "#auctionId")
+    public Auction update(String auctionId, String sellerId, UpdateAuctionRequest req) {
+        Auction auction = getAuctionOrThrow(auctionId);
+
+        if (!auction.getSellerId().equals(sellerId)) {
+            throw new IllegalStateException("Only the owner can edit this auction");
+        }
+
+        if (auction.getStatus() != AuctionStatus.DRAFT) {
+            throw new IllegalStateException("Only DRAFT auctions can be edited");
+        }
+
+        if (req.getTitle() != null) auction.setTitle(req.getTitle());
+        if (req.getStartingPrice() != null) auction.setStartingPrice(req.getStartingPrice());
+        if (req.getReservePrice() != null) auction.setReservePrice(req.getReservePrice());
+        if (req.getMinimumIncrement() != null) auction.setMinimumIncrement(req.getMinimumIncrement());
+        if (req.getEndTime() != null) auction.setEndTime(req.getEndTime());
+
         return auctionRepository.save(auction);
     }
 

@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.dto.AuctionResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.PlaceBidRequest;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
@@ -83,6 +84,25 @@ public class AuctionController {
             @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
         AuctionResponse res = AuctionResponse.from(auctionService.create(req, sellerId));
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(
+        summary = "Update a draft auction",
+        description = "Allows the seller to update editable fields (title, prices, endTime, minimumIncrement) while the auction is still in DRAFT status. Only the auction owner can perform this action."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Auction updated successfully"),
+        @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state"),
+        @ApiResponse(responseCode = "403", description = "Caller is not the auction owner"),
+        @ApiResponse(responseCode = "404", description = "Auction not found")
+    })
+    public ResponseEntity<AuctionResponse> update(
+            @Parameter(description = "Auction ID", required = true) @PathVariable String id,
+            @Valid @RequestBody UpdateAuctionRequest req,
+            @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
+        AuctionResponse res = AuctionResponse.from(auctionService.update(id, sellerId, req));
+        return ResponseEntity.ok(res);
     }
 
     @PatchMapping("/{id}/activate")

@@ -42,6 +42,33 @@
 					}
 				},
 				{
+					"name": "1b. Update Draft Auction (Edit endTime & title)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"Title updated\", () => pm.expect(pm.response.json().title).to.eql(\"Custom Mechanical Keyboard - EDITED\"));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{sellerId}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Custom Mechanical Keyboard - EDITED\",\n  \"endTime\": \"2027-03-31T12:00:00Z\",\n  \"minimumIncrement\": 75000\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}"]}
+					}
+				},
+				{
 					"name": "2. Activate Auction",
 					"event": [
 						{

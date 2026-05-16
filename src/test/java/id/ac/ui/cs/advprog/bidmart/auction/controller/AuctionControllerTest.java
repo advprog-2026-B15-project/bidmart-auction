@@ -378,4 +378,68 @@ class AuctionControllerTest {
         mockMvc.perform(patch("/api/auctions/auction-101/activate"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void testUpdateAuction_success() throws Exception {
+        Auction updated = new Auction();
+        updated.setId("auction-101");
+        updated.setTitle("Updated Title");
+        updated.setSellerId("seller-001");
+        updated.setStartingPrice(500000L);
+        updated.setMinimumIncrement(75000L);
+        updated.setCurrentPrice(0L);
+        updated.setStatus(AuctionStatus.DRAFT);
+        updated.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(10));
+
+        when(auctionService.update(eq("auction-101"), eq("seller-001"),
+                any(id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest.class)))
+                .thenReturn(updated);
+
+        String body = objectMapper.writeValueAsString(
+            java.util.Map.of("title", "Updated Title", "minimumIncrement", 75000));
+
+        mockMvc.perform(patch("/api/auctions/auction-101")
+                        .header("Authorization", "Bearer seller-001")
+                        .requestAttr("userId", "seller-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated Title"));
+    }
+
+    @Test
+    void testUpdateAuction_wrongSeller_returnsForbidden() throws Exception {
+        when(auctionService.update(eq("auction-101"), eq("seller-999"),
+                any(id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest.class)))
+                .thenThrow(new IllegalStateException("Only the owner can edit this auction"));
+
+        mockMvc.perform(patch("/api/auctions/auction-101")
+                        .header("Authorization", "Bearer seller-999")
+                        .requestAttr("userId", "seller-999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"Hacked\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testUpdateAuction_notDraft_returnsBadRequest() throws Exception {
+        when(auctionService.update(eq("auction-101"), eq("seller-001"),
+                any(id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest.class)))
+                .thenThrow(new IllegalStateException("Only DRAFT auctions can be edited"));
+
+        mockMvc.perform(patch("/api/auctions/auction-101")
+                        .header("Authorization", "Bearer seller-001")
+                        .requestAttr("userId", "seller-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"Too Late\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testUpdateAuction_withoutAuth_returnsUnauthorized() throws Exception {
+        mockMvc.perform(patch("/api/auctions/auction-101")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"No Auth\"}"))
+                .andExpect(status().isUnauthorized());
+    }
 }
