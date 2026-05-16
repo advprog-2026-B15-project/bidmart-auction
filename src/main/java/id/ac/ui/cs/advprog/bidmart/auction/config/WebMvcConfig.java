@@ -9,11 +9,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    private final JwtInterceptor jwtInterceptor;
+    private final AuthInterceptor authInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(jwtInterceptor)
+        registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/auctions/**");
     }
 }

@@ -15,7 +15,7 @@ import static org.mockito.Mockito.*;
 class WebMvcConfigTest {
 
     @Mock
-    private JwtInterceptor jwtInterceptor;
+    private AuthInterceptor authInterceptor;
 
     @Mock
     private InterceptorRegistry registry;
@@ -28,12 +28,12 @@ class WebMvcConfigTest {
 
     @Test
     void testAddInterceptors() {
-        when(registry.addInterceptor(jwtInterceptor)).thenReturn(registration);
+        when(registry.addInterceptor(authInterceptor)).thenReturn(registration);
         when(registration.addPathPatterns(anyString())).thenReturn(registration);
 
         webMvcConfig.addInterceptors(registry);
 
-        verify(registry).addInterceptor(jwtInterceptor);
+        verify(registry).addInterceptor(authInterceptor);
         verify(registration).addPathPatterns("/api/auctions/**");
     }
 }
