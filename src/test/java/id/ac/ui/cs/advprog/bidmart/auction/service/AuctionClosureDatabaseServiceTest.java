@@ -216,7 +216,47 @@ class AuctionClosureDatabaseServiceTest {
 
         service.evaluateClosedAuction("auc-1", now);
 
-        inOrder.verify(auctionRepository).save(auction);
         inOrder.verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
+    }
+
+    @Test
+    void markAsClosed_validAuction_setsStatusToClosedAndSaves() {
+        auction.setStatus(AuctionStatus.ACTIVE);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        assertEquals(AuctionStatus.CLOSED, auction.getStatus());
+        verify(auctionRepository).save(auction);
+    }
+
+    @Test
+    void markAsClosed_extendedAuction_setsStatusToClosedAndSaves() {
+        auction.setStatus(AuctionStatus.EXTENDED);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        assertEquals(AuctionStatus.CLOSED, auction.getStatus());
+        verify(auctionRepository).save(auction);
+    }
+
+    @Test
+    void markAsClosed_invalidStatus_skipsProcessing() {
+        auction.setStatus(AuctionStatus.WON);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void markAsClosed_auctionNotFound_skipsProcessing() {
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.empty());
+
+        service.markAsClosed("auc-1", now);
+
+        verify(auctionRepository, never()).save(any());
     }
 }

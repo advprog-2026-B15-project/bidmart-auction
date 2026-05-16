@@ -205,6 +205,46 @@ class AuctionClosingSchedulerTest {
                 "Semua 300 auction harus diproses, CallerRunsPolicy memastikan tidak ada yang terbuang");
     }
 
+    @Test
+    void closeExpiredAuctions_evaluatesClosedAuctions() {
+        when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
+                .thenReturn(Collections.emptyList());
+
+        Auction closedAuction = new Auction();
+        closedAuction.setId("auc-closed-1");
+        closedAuction.setStatus(AuctionStatus.CLOSED);
+
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Collections.singletonList(closedAuction));
+
+        scheduler.closeExpiredAuctions();
+
+        verify(auctionClosureService).processEvaluateClosedAuction(eq(closedAuction), any(OffsetDateTime.class));
+        verify(auctionClosureService, never()).processMarkAsClosed(any(), any());
+    }
+
+    @Test
+    void closeExpiredAuctions_closureServiceThrowsOnEvaluate_continuesProcessingOthers() {
+        when(auctionRepository.findExpiredByStatuses(anyList(), any(OffsetDateTime.class)))
+                .thenReturn(Collections.emptyList());
+
+        Auction closedAuction1 = new Auction();
+        closedAuction1.setId("auc-closed-1");
+        closedAuction1.setStatus(AuctionStatus.CLOSED);
+
+        Auction closedAuction2 = new Auction();
+        closedAuction2.setId("auc-closed-2");
+        closedAuction2.setStatus(AuctionStatus.CLOSED);
+
+        when(auctionRepository.findByStatus(AuctionStatus.CLOSED)).thenReturn(Arrays.asList(closedAuction1, closedAuction2));
+
+        doThrow(new RuntimeException("Evaluate Error"))
+                .when(auctionClosureService).processEvaluateClosedAuction(eq(closedAuction1), any(OffsetDateTime.class));
+
+        scheduler.closeExpiredAuctions();
+
+        verify(auctionClosureService).processEvaluateClosedAuction(eq(closedAuction2), any(OffsetDateTime.class));
+    }
+
     private ThreadPoolTaskExecutor buildRealExecutor(int maxPool) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(maxPool);
