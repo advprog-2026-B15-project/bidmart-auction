@@ -1,250 +1,365 @@
 {
 	"info": {
-		"name": "BidMart Auction API Tests",
-		"description": "Koleksi Postman untuk menguji fungsionalitas modul Auction BidMart.",
+		"name": "BidMart Auction API",
+		"description": "Koleksi Postman untuk menguji seluruh endpoint Auction Service BidMart.\n\n**PENTING:** Semua request yang memerlukan identitas user menggunakan header `X-User-Id` (sementara sebelum API Gateway diintegrasikan penuh).\n\n**Base URL (Local):** `http://localhost:8083`\n**Swagger UI:** `http://localhost:8083/swagger-ui.html`",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "1. Create Draft Auction",
-			"event": [
+			"name": "Happy Path",
+			"description": "Skenario alur lengkap dari membuat lelang hingga bid berhasil.",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"if (pm.response.code === 201) {",
-							"    var jsonData = pm.response.json();",
-							"    pm.collectionVariables.set(\"auctionId\", jsonData.id);",
-							"    console.log(\"Auction ID saved: \" + jsonData.id);",
-							"}"
+					"name": "1. Create Draft Auction",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"auctionId\", jsonData.id);",
+									"    console.log(\"Auction ID saved: \" + jsonData.id);",
+									"    pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+									"    pm.test(\"Status is DRAFT\", () => pm.expect(jsonData.status).to.eql(\"DRAFT\"));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{sellerId}}"}
 						],
-						"type": "text/javascript"
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"listingId\": \"listing-new-001\",\n  \"title\": \"Custom Mechanical Keyboard\",\n  \"startingPrice\": 1200000,\n  \"reservePrice\": 1500000,\n  \"minimumIncrement\": 50000,\n  \"endTime\": \"2026-12-31T12:00:00Z\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/auctions", "host": ["{{baseUrl}}"], "path": ["api", "auctions"]}
 					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "X-User-Id",
-						"value": "{{sellerId}}"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"listingId\": \"290f1ee-6c54-4b01-90e6-d701748f0851\",\n  \"title\": \"Mechanical Keyboard Custom\",\n  \"startingPrice\": 1200000,\n  \"reservePrice\": 1500000,\n  \"minimumIncrement\": 50000,\n  \"endTime\": \"2026-12-31T12:00:00Z\"\n}"
 				},
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions",
-					"host": [
-						"{{baseUrl}}"
+				{
+					"name": "1b. Update Draft Auction (Edit endTime & title)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"Title updated\", () => pm.expect(pm.response.json().title).to.eql(\"Custom Mechanical Keyboard - EDITED\"));"
+								],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions"
-					]
-				}
-			}
-		},
-		{
-			"name": "2. Bid Before Active (Fail)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "X-User-Id",
-						"value": "{{buyerId}}"
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{sellerId}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Custom Mechanical Keyboard - EDITED\",\n  \"endTime\": \"2027-03-31T12:00:00Z\",\n  \"minimumIncrement\": 75000\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}"]}
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"amount\": 1300000\n}"
 				},
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
-					"host": [
-						"{{baseUrl}}"
+				{
+					"name": "2. Activate Auction",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"Status is ACTIVE\", () => pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));"
+								],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}",
-						"bids"
-					]
-				}
-			}
-		},
-		{
-			"name": "3. Activate Auction",
-			"request": {
-				"method": "PATCH",
-				"header": [
-					{
-						"key": "X-User-Id",
-						"value": "{{sellerId}}"
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "X-User-Id", "value": "{{sellerId}}"}],
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/activate", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "activate"]}
 					}
-				],
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/activate",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}",
-						"activate"
-					]
-				}
-			}
-		},
-		{
-			"name": "4. Bid Below Minimum (Fail)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "X-User-Id",
-						"value": "{{buyerId}}"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"amount\": 1000000\n}"
 				},
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
-					"host": [
-						"{{baseUrl}}"
+				{
+					"name": "3. Place Bid (Success)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+									"pm.test(\"Bid amount matches\", () => pm.expect(pm.response.json().amount).to.eql(1250000));"
+								],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}",
-						"bids"
-					]
-				}
-			}
-		},
-		{
-			"name": "5. Place Bid (Success / 500 Wallet Error)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "X-User-Id",
-						"value": "{{buyerId}}"
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{buyerId}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 1250000\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"amount\": 1250000\n}"
 				},
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
-					"host": [
-						"{{baseUrl}}"
+				{
+					"name": "4. Get Auction by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"Current price updated\", () => pm.expect(pm.response.json().currentPrice).to.eql(1250000));"
+								],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}",
-						"bids"
-					]
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}"]}
+					}
+				},
+				{
+					"name": "5. Get Bid History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+									"pm.test(\"History is not empty\", () => pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
+					}
 				}
-			}
+			]
 		},
 		{
-			"name": "6. Get Bid History",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}",
-						"bids"
-					]
+			"name": "Pagination & Filtering",
+			"description": "Skenario untuk menguji fitur pagination dan filter status/harga.",
+			"item": [
+				{
+					"name": "List All (Page 1, Size 10)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "auctions"], "query": [{"key": "page", "value": "0"}, {"key": "size", "value": "10"}]}
+					}
+				},
+				{
+					"name": "Filter by Status ACTIVE",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions?status=ACTIVE&page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "auctions"], "query": [{"key": "status", "value": "ACTIVE"}, {"key": "page", "value": "0"}, {"key": "size", "value": "10"}]}
+					}
+				},
+				{
+					"name": "Filter by Price Range (1M - 3M)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions?minPrice=1000000&maxPrice=3000000", "host": ["{{baseUrl}}"], "path": ["api", "auctions"], "query": [{"key": "minPrice", "value": "1000000"}, {"key": "maxPrice", "value": "3000000"}]}
+					}
+				},
+				{
+					"name": "Filter ACTIVE + Sort by Price",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions?status=ACTIVE&sort=currentPrice,desc&page=0&size=5", "host": ["{{baseUrl}}"], "path": ["api", "auctions"], "query": [{"key": "status", "value": "ACTIVE"}, {"key": "sort", "value": "currentPrice,desc"}, {"key": "page", "value": "0"}, {"key": "size", "value": "5"}]}
+					}
 				}
-			}
+			]
 		},
 		{
-			"name": "7. Get Auction by ID",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions/{{auctionId}}",
-					"host": [
-						"{{baseUrl}}"
+			"name": "Validation Errors",
+			"description": "Skenario yang seharusnya menghasilkan 400 Bad Request.",
+			"item": [
+				{
+					"name": "Bid Before Active (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 400\", () => pm.response.to.have.status(400));"],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions",
-						"{{auctionId}}"
-					]
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{buyerId}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 1300000\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
+					}
+				},
+				{
+					"name": "Bid Below Minimum Increment (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 400\", () => pm.response.to.have.status(400));"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{buyerId}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 1201000\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
+					}
+				},
+				{
+					"name": "Get Auction Not Found (404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 404\", () => pm.response.to.have.status(404));"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/api/auctions/auction-does-not-exist", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "auction-does-not-exist"]}
+					}
 				}
-			}
+			]
 		},
 		{
-			"name": "8. Get All Auctions",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{baseUrl}}/api/auctions",
-					"host": [
-						"{{baseUrl}}"
+			"name": "Security / Auth Errors",
+			"description": "Skenario yang seharusnya menghasilkan 401/403.",
+			"item": [
+				{
+					"name": "Create Auction - No X-User-Id (401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 401\", () => pm.response.to.have.status(401));"],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"path": [
-						"api",
-						"auctions"
-					]
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"listingId\": \"listing-xxx\",\n  \"title\": \"Unauthorized Attempt\",\n  \"startingPrice\": 100000,\n  \"minimumIncrement\": 10000,\n  \"endTime\": \"2026-12-31T12:00:00Z\"\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auctions", "host": ["{{baseUrl}}"], "path": ["api", "auctions"]}
+					}
+				},
+				{
+					"name": "Seller Bids Own Auction (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 400 for self-bid\", () => pm.response.to.have.status(400));"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{sellerId}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 1300000\n}"},
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
+					}
+				},
+				{
+					"name": "Activate - Wrong Seller (403)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 403 for wrong owner\", () => pm.response.to.have.status(403));"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "X-User-Id", "value": "{{buyerId}}"}],
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/activate", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "activate"]}
+					}
 				}
-			}
+			]
+		},
+		{
+			"name": "SSE Real-Time",
+			"description": "Stream SSE untuk update bid secara real-time. Buka di browser atau curl.",
+			"item": [
+				{
+					"name": "Subscribe to Auction Stream",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Accept", "value": "text/event-stream"}],
+						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/stream", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "stream"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "Observability",
+			"description": "Endpoint aktuator dan Prometheus untuk monitoring.",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"]}
+					}
+				},
+				{
+					"name": "Prometheus Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/actuator/prometheus", "host": ["{{baseUrl}}"], "path": ["actuator", "prometheus"]}
+					}
+				}
+			]
 		}
 	],
 	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "http://localhost:8083",
-			"type": "string"
-		},
-		{
-			"key": "sellerId",
-			"value": "usr-seller-01",
-			"type": "string"
-		},
-		{
-			"key": "buyerId",
-			"value": "usr-buyer-99",
-			"type": "string"
-		},
-		{
-			"key": "auctionId",
-			"value": "",
-			"type": "string"
-		}
+		{"key": "baseUrl", "value": "http://localhost:8083", "type": "string"},
+		{"key": "sellerId", "value": "seller-1@mail.com", "type": "string"},
+		{"key": "buyerId", "value": "buyer-1@mail.com", "type": "string"},
+		{"key": "auctionId", "value": "", "type": "string"}
 	]
 }

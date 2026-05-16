@@ -101,4 +101,37 @@ class JwtInterceptorTest {
         assertFalse(result);
         verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
     }
+
+    @Test
+    void testPreHandlePatchRequestWithoutToken_isBlocked() throws Exception {
+        when(request.getMethod()).thenReturn("PATCH");
+        when(request.getHeader("Authorization")).thenReturn(null);
+
+        boolean result = jwtInterceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authorization token is required for this action");
+    }
+
+    @Test
+    void testPreHandleDeleteRequestWithoutToken_isBlocked() throws Exception {
+        when(request.getMethod()).thenReturn("DELETE");
+        when(request.getHeader("Authorization")).thenReturn(null);
+
+        boolean result = jwtInterceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authorization token is required for this action");
+    }
+
+    @Test
+    void testPreHandlePostWithMalformedHeader_isBlocked() throws Exception {
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getHeader("Authorization")).thenReturn("NotBearer token");
+
+        boolean result = jwtInterceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authorization token is required for this action");
+    }
 }
