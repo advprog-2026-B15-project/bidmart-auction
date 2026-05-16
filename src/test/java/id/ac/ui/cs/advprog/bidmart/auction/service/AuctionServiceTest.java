@@ -230,6 +230,30 @@ class AuctionServiceTest {
     }
 
     @Test
+    void testUpdateAuctionFullSuccess() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+
+        OffsetDateTime newEnd = OffsetDateTime.now(ZoneOffset.UTC).plusDays(20);
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Full Update");
+        req.setStartingPrice(2000000L);
+        req.setReservePrice(3000000L);
+        req.setMinimumIncrement(100000L);
+        req.setEndTime(newEnd);
+
+        Auction result = auctionService.update("auction-101", "seller-001", req);
+
+        assertEquals("Full Update", result.getTitle());
+        assertEquals(2000000L, result.getStartingPrice());
+        assertEquals(3000000L, result.getReservePrice());
+        assertEquals(100000L, result.getMinimumIncrement());
+        assertEquals(newEnd, result.getEndTime());
+        verify(auctionRepository, times(1)).save(auction);
+    }
+
+    @Test
     void testUpdateAuctionPartialFields() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
         when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
