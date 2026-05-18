@@ -142,6 +142,7 @@ class AuctionServiceCacheTest {
 
         verify(auctionRepository, times(6)).findById("auc-123");
 
-        verify(bidRepository, times(3)).findBidHistory("auc-123");
+        verify(bidRepository, times(2)).findBidHistory("auc-123");
+        verify(bidRepository, times(1)).findHighestBid("auc-123");
     }
 }

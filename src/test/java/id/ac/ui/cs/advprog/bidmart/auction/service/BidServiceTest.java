@@ -101,7 +101,7 @@ class BidServiceTest {
     @Test
     void testPlaceBidSuccessFirstBid() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -123,7 +123,7 @@ class BidServiceTest {
         previousBid.setAmount(500000L);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(List.of(previousBid));
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.of(previousBid));
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -140,7 +140,7 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.ACTIVE);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -156,7 +156,7 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.EXTENDED);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -170,7 +170,7 @@ class BidServiceTest {
         auction.setEndTime(null);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 

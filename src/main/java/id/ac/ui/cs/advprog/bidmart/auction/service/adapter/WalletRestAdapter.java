@@ -112,7 +112,7 @@ public class WalletRestAdapter implements HoldBalancePort {
         log.info("[MOCK-WALLET] Bypassing external REST call to Wallet.");
 
         try {
-            Thread.sleep(200);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Profiling latency simulation interrupted", e);

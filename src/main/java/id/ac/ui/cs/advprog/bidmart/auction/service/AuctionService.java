@@ -174,8 +174,9 @@ public class AuctionService {
     }
 
     private String getPreviousBidderId(String auctionId) {
-        List<Bid> history = bidRepository.findBidHistory(auctionId);
-        return history.isEmpty() ? null : history.get(0).getBidderId();
+        return bidRepository.findHighestBid(auctionId)
+                .map(Bid::getBidderId)
+                .orElse(null);
     }
 
     private void handleAntiSniping(Auction auction) {
