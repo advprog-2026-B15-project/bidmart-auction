@@ -35,8 +35,6 @@ class DataSeederTest {
 
         dataSeeder.run();
 
-        verify(bidRepository, times(1)).deleteAllInBatch();
-        verify(auctionRepository, times(1)).deleteAllInBatch();
         verify(auctionRepository, times(50)).save(any(Auction.class));
     }
 }

@@ -140,7 +140,7 @@ class AuctionServiceCacheTest {
         auctionService.findById("auc-123");
         auctionService.getBidHistory("auc-123");
 
-        verify(auctionRepository, times(5)).findById("auc-123");
+        verify(auctionRepository, times(6)).findById("auc-123");
 
         verify(bidRepository, times(3)).findBidHistory("auc-123");
     }

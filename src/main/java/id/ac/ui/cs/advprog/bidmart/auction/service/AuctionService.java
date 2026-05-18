@@ -133,28 +133,43 @@ public class AuctionService {
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
         return bidLatencyTimer.record(() -> {
-            Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-                Auction auction = getAuctionOrThrow(auctionId);
+            // Preliminary validation outside the lock to avoid holding balance for invalid bids
+            Auction preliminaryAuction = getAuctionOrThrow(auctionId);
+            if (bidderId.equals(preliminaryAuction.getSellerId())) {
+                throw new IllegalArgumentException("Seller cannot bid on own auction");
+            }
+            for (BidValidationStrategy strategy : validationStrategies) {
+                strategy.validate(preliminaryAuction, amount);
+            }
 
-                if (bidderId.equals(auction.getSellerId())) {
-                    throw new IllegalArgumentException("Seller cannot bid on own auction");
-                }
+            holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
-                for (BidValidationStrategy strategy : validationStrategies) {
-                    strategy.validate(auction, amount);
-                }
+            try {
+                Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
+                    Auction auction = getAuctionOrThrow(auctionId);
 
-                String previousBidderId = getPreviousBidderId(auctionId);
-                holdBalancePort.holdBalance(bidderId, auctionId, amount);
+                    if (bidderId.equals(auction.getSellerId())) {
+                        throw new IllegalArgumentException("Seller cannot bid on own auction");
+                    }
 
-                handleAntiSniping(auction);
-                Bid bid = createAndSaveBid(auction, bidderId, amount);
-                publishBidEvents(auction, bid, previousBidderId);
+                    for (BidValidationStrategy strategy : validationStrategies) {
+                        strategy.validate(auction, amount);
+                    }
 
-                return bid;
-            });
-            bidPlacedCounter.increment();
-            return result;
+                    String previousBidderId = getPreviousBidderId(auctionId);
+
+                    handleAntiSniping(auction);
+                    Bid bid = createAndSaveBid(auction, bidderId, amount);
+                    publishBidEvents(auction, bid, previousBidderId);
+
+                    return bid;
+                });
+                bidPlacedCounter.increment();
+                return result;
+            } catch (Exception e) {
+                holdBalancePort.releaseBalance(bidderId, auctionId, amount);
+                throw e;
+            }
         });
     }
 

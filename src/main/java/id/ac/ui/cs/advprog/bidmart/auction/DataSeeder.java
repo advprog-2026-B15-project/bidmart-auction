@@ -26,9 +26,10 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        log.info("[DataSeeder] Cleaning up existing data...");
-        bidRepository.deleteAllInBatch();
-        auctionRepository.deleteAllInBatch();
+        if (auctionRepository.count() > 0) {
+            log.info("[DataSeeder] Database already has data. Skipping fresh seeding to preserve your manual test data.");
+            return;
+        }
 
         log.info("[DataSeeder] Seeding fresh data scenarios...");
 
