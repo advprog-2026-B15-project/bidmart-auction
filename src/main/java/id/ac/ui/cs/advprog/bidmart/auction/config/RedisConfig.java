@@ -16,7 +16,13 @@ public class RedisConfig {
     @Bean
     public RedissonClient redissonClient() {
         Config config = new Config();
-        config.useSingleServer().setAddress(redisUrl);
+        config.setNettyThreads(16);
+        config.useSingleServer()
+              .setAddress(redisUrl)
+              .setTimeout(10000)
+              .setConnectTimeout(10000)
+              .setRetryAttempts(5)
+              .setRetryInterval(1500);
         return Redisson.create(config);
     }
 }

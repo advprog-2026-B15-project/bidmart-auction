@@ -320,7 +320,9 @@ class AuctionControllerTest {
         bid2.setBidderId("buyer-002");
         bid2.setAmount(500000L);
 
-        when(auctionService.getBidHistory("auction-101")).thenReturn(Arrays.asList(bid1, bid2));
+        id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse br1 = id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse.from(bid1);
+        id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse br2 = id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse.from(bid2);
+        when(auctionService.getBidHistory("auction-101")).thenReturn(Arrays.asList(br1, br2));
 
         mockMvc.perform(get("/api/auctions/auction-101/bids"))
                 .andExpect(status().isOk())

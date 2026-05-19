@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
@@ -64,7 +65,8 @@ class AuctionServiceBidTest {
             auctionEventPort,
             lockTemplate,
             sseEmitterService,
-            meterRegistry
+            meterRegistry,
+            new org.springframework.cache.concurrent.ConcurrentMapCacheManager("auction", "bidHistory")
         );
         auctionService.initMetrics();
         
@@ -141,10 +143,10 @@ class AuctionServiceBidTest {
 
     @Test
     void testGetBidHistory() {
-        when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
+        when(auctionRepository.existsById("auction-123")).thenReturn(true);
         when(bidRepository.findBidHistory("auction-123")).thenReturn(new ArrayList<>());
 
-        List<Bid> result = auctionService.getBidHistory("auction-123");
+        List<BidResponse> result = auctionService.getBidHistory("auction-123");
 
         assertNotNull(result);
         verify(bidRepository).findBidHistory("auction-123");

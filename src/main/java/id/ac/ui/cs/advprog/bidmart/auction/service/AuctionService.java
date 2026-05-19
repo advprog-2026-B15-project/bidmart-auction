@@ -10,9 +10,11 @@ import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.BidPlacedEvent;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -42,6 +44,7 @@ public class AuctionService {
     private final DistributedLockTemplate lockTemplate;
     private final SseEmitterService sseEmitterService;
     private final MeterRegistry meterRegistry;
+    private final CacheManager cacheManager;
 
     private Counter bidPlacedCounter;
     private Timer bidLatencyTimer;
@@ -129,11 +132,9 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
-    @CacheEvict(value = {"auction", "bidHistory"}, key = "#auctionId")
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
         return bidLatencyTimer.record(() -> {
-            // Preliminary validation outside the lock to avoid holding balance for invalid bids
             Auction preliminaryAuction = getAuctionOrThrow(auctionId);
             if (bidderId.equals(preliminaryAuction.getSellerId())) {
                 throw new IllegalArgumentException("Seller cannot bid on own auction");
@@ -198,6 +199,22 @@ public class AuctionService {
 
         auction.setCurrentPrice(amount);
         auctionRepository.save(auction);
+
+        var auctionCache = cacheManager.getCache("auction");
+        if (auctionCache != null) {
+            auctionCache.put(auction.getId(), auction);
+        }
+
+        var bidHistoryCache = cacheManager.getCache("bidHistory");
+        if (bidHistoryCache != null) {
+            List<BidResponse> history = bidHistoryCache.get(auction.getId(), List.class);
+            if (history != null) {
+                List<BidResponse> updatedHistory = new java.util.ArrayList<>(history);
+                updatedHistory.add(0, BidResponse.from(bid));
+                bidHistoryCache.put(auction.getId(), updatedHistory);
+            }
+        }
+
         return bid;
     }
 
@@ -232,8 +249,12 @@ public class AuctionService {
     }
 
     @Cacheable(value = "bidHistory", key = "#auctionId")
-    public List<Bid> getBidHistory(String auctionId) {
-        getAuctionOrThrow(auctionId);
-        return bidRepository.findBidHistory(auctionId);
+    public List<BidResponse> getBidHistory(String auctionId) {
+        if (!auctionRepository.existsById(auctionId)) {
+            throw new NoSuchElementException("Auction not found");
+        }
+        return bidRepository.findBidHistory(auctionId).stream()
+                .map(BidResponse::from)
+                .toList();
     }
 }

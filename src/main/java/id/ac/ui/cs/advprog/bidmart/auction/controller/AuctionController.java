@@ -152,10 +152,7 @@ public class AuctionController {
     })
     public ResponseEntity<List<BidResponse>> getBidHistory(
             @Parameter(description = "Auction ID", required = true) @PathVariable String id) {
-        List<BidResponse> bids = auctionService.getBidHistory(id)
-                .stream()
-                .map(BidResponse::from)
-                .toList();
+        List<BidResponse> bids = auctionService.getBidHistory(id);
         return ResponseEntity.ok(bids);
     }
 
