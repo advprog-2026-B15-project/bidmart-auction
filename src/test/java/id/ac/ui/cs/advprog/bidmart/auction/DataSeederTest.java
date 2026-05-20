@@ -26,9 +26,6 @@ class DataSeederTest {
     @InjectMocks
     private DataSeeder dataSeeder;
 
-    @BeforeEach
-    void setUp() {
-    }
 
     @Test
     void testRunSeederSuccess() {

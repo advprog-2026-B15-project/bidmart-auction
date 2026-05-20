@@ -7,7 +7,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.service.AuctionService;
-import id.ac.ui.cs.advprog.bidmart.auction.service.JwtService;
+
 import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.junit.jupiter.api.BeforeEach;

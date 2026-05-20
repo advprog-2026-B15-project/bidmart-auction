@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationEvent;
 
 @Getter
 public class PublishUnsoldRabbitEvent extends ApplicationEvent {
-    private final AuctionClosedEvent rabbitEventPayload;
+    private final transient AuctionClosedEvent rabbitEventPayload;
 
     public PublishUnsoldRabbitEvent(Object source, AuctionClosedEvent rabbitEventPayload) {
         super(source);

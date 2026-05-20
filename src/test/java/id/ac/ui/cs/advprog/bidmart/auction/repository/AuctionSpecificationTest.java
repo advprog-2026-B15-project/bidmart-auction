@@ -41,7 +41,7 @@ class AuctionSpecificationTest {
     @Test
     void testFilterByAllNull() {
         Specification<Auction> spec = AuctionSpecification.filterBy(null, null, null);
-        Predicate predicate = spec.toPredicate(root, query, criteriaBuilder);
+        spec.toPredicate(root, query, criteriaBuilder);
         
         assertNotNull(spec);
         verify(criteriaBuilder).and(new Predicate[0]);

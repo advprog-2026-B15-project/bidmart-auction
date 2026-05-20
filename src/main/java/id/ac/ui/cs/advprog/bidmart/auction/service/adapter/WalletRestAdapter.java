@@ -18,15 +18,21 @@ public class WalletRestAdapter implements HoldBalancePort {
 
     private final RestClient restClient;
     private final String walletServiceUrl;
+    private final String holdPath;
+    private final String releasePath;
 
     static final int MAX_RETRIES = 3;
     static final long RETRY_DELAY_MS = 1000;
 
     public WalletRestAdapter(
             RestClient.Builder restClientBuilder,
-            @Value("${bidmart.wallet-service.url}") String walletServiceUrl) {
+            @Value("${bidmart.wallet-service.url}") String walletServiceUrl,
+            @Value("${bidmart.wallet-service.hold-path:/internal/wallet/hold}") String holdPath,
+            @Value("${bidmart.wallet-service.release-path:/internal/wallet/release}") String releasePath) {
         this.restClient = restClientBuilder.build();
         this.walletServiceUrl = walletServiceUrl;
+        this.holdPath = holdPath;
+        this.releasePath = releasePath;
     }
 
     @Override
@@ -36,8 +42,7 @@ public class WalletRestAdapter implements HoldBalancePort {
         backoff = @Backoff(delay = 1000, multiplier = 2.0)
     )
     public void holdBalance(String userId, String auctionId, Long amount) {
-        String path = "/internal/wallet/hold";
-        String endpoint = walletServiceUrl + path;
+        String endpoint = walletServiceUrl + holdPath;
         String idempotencyKey = auctionId + "-" + userId;
 
         Map<String, Object> requestBody = Map.of(
@@ -52,17 +57,15 @@ public class WalletRestAdapter implements HoldBalancePort {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(requestBody)
                 .retrieve()
-                .onStatus(status -> status.is4xxClientError(),
+                .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
                     (request, response) -> {
-                    throw new IllegalArgumentException("Client error (" + path + "): " + response.getStatusCode());
+                    throw new IllegalArgumentException("Client error (" + holdPath + "): " + response.getStatusCode());
                 })
-                .onStatus(status -> status.is5xxServerError(),
+                .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError,
                     (request, response) -> {
-                    throw new IllegalStateException("Server error (" + path + "): " + response.getStatusCode());
+                    throw new IllegalStateException("Server error (" + holdPath + "): " + response.getStatusCode());
                 })
                 .toBodilessEntity();
-
-        // simulateLatencyForProfiling();
     }
 
     @Recover
@@ -79,8 +82,7 @@ public class WalletRestAdapter implements HoldBalancePort {
         backoff = @Backoff(delay = 1000, multiplier = 2.0)
     )
     public void releaseBalance(String userId, String auctionId, Long amount) {
-        String path = "/internal/wallet/release";
-        String endpoint = walletServiceUrl + path;
+        String endpoint = walletServiceUrl + releasePath;
         String idempotencyKey = auctionId + "-" + userId + "-release";
 
         Map<String, Object> requestBody = Map.of(
@@ -95,17 +97,15 @@ public class WalletRestAdapter implements HoldBalancePort {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(requestBody)
                 .retrieve()
-                .onStatus(status -> status.is4xxClientError(),
+                .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
                     (request, response) -> {
-                    throw new IllegalArgumentException("Client error (" + path + "): " + response.getStatusCode());
+                    throw new IllegalArgumentException("Client error (" + releasePath + "): " + response.getStatusCode());
                 })
-                .onStatus(status -> status.is5xxServerError(),
+                .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError,
                     (request, response) -> {
-                    throw new IllegalStateException("Server error (" + path + "): " + response.getStatusCode());
+                    throw new IllegalStateException("Server error (" + releasePath + "): " + response.getStatusCode());
                 })
                 .toBodilessEntity();
-
-        // simulateLatencyForProfiling();
     }
 
     protected void simulateLatencyForProfiling() {
@@ -115,7 +115,7 @@ public class WalletRestAdapter implements HoldBalancePort {
             Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Profiling latency simulation interrupted", e);
+            throw new IllegalStateException("Profiling latency simulation interrupted", e);
         }
     }
 
