@@ -22,7 +22,6 @@ public class AuctionCacheUpdaterListener {
 ```
 - `SseEmitterService` only handles the live updates (real-time connections).
 - `AuctionClosingScheduler` only handles checking for expired auctions in the background.
-```
 
 ### O - Open/Closed Principle
 The system is built so you can add new features without breaking existing code.
