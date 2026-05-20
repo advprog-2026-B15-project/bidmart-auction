@@ -15,10 +15,10 @@ The difference is easily visible in the Profiler:
 - **CPU Time Drop:** The CPU time for this function dropped drastically from **203 ms** down to just **19 ms**.
 - **Memory Allocation Drop:** The memory used plummeted from **2.67 MB** down to a tiny **387.04 KB**. 
 
-![CPU Time Comparison](docs/images/getPreviousBidderId_cpu.png)
+![CPU Time Comparison](images/getPreviousBidderId_cpu.png)
 *CPU Time drop from 203ms to 19ms*
 
-![Memory Allocation Comparison](docs/images/getPreviousBidderId_memory.png)
+![Memory Allocation Comparison](images/getPreviousBidderId_memory.png)
 *Memory Allocation drop from 2.67 MB to 387.04 KB*
 
 ## Redis Cache for `getBidHistory()`

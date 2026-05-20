@@ -14,7 +14,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.CacheManager;
+
 import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -44,7 +44,7 @@ public class AuctionService {
     private final DistributedLockTemplate lockTemplate;
     private final SseEmitterService sseEmitterService;
     private final MeterRegistry meterRegistry;
-    private final CacheManager cacheManager;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     private Counter bidPlacedCounter;
     private Timer bidLatencyTimer;
@@ -200,20 +200,8 @@ public class AuctionService {
         auction.setCurrentPrice(amount);
         auctionRepository.save(auction);
 
-        var auctionCache = cacheManager.getCache("auction");
-        if (auctionCache != null) {
-            auctionCache.put(auction.getId(), auction);
-        }
-
-        var bidHistoryCache = cacheManager.getCache("bidHistory");
-        if (bidHistoryCache != null) {
-            List<BidResponse> history = bidHistoryCache.get(auction.getId(), List.class);
-            if (history != null) {
-                List<BidResponse> updatedHistory = new java.util.ArrayList<>(history);
-                updatedHistory.add(0, BidResponse.from(bid));
-                bidHistoryCache.put(auction.getId(), updatedHistory);
-            }
-        }
+        applicationEventPublisher.publishEvent(
+                new id.ac.ui.cs.advprog.bidmart.auction.service.event.LocalBidSavedEvent(this, auction, bid));
 
         return bid;
     }
