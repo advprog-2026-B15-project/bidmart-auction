@@ -14,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -29,7 +28,7 @@ public class AuctionClosureDatabaseService {
 
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
-    private final AuctionEventPort auctionEventPort;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "auction", key = "#auctionId")
@@ -97,18 +96,8 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    auctionEventPort.publishWinnerDetermined(event);
-                    log.info("Auction {} closed as WON, published WinnerDeterminedEvent", auction.getId());
-                }
-            });
-        } else {
-            auctionEventPort.publishWinnerDetermined(event);
-            log.info("Auction {} closed as WON, published WinnerDeterminedEvent", auction.getId());
-        }
+        applicationEventPublisher.publishEvent(new id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent(this, event));
+        log.info("Auction {} closed as WON, published local event for WinnerDeterminedEvent", auction.getId());
     }
 
     private void closeAsUnsold(Auction auction, OffsetDateTime closedAt) {
@@ -132,17 +121,7 @@ public class AuctionClosureDatabaseService {
                         .build())
                 .build();
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    auctionEventPort.publishAuctionClosed(event);
-                    log.info("Auction {} closed as UNSOLD, published AuctionClosedEvent", auction.getId());
-                }
-            });
-        } else {
-            auctionEventPort.publishAuctionClosed(event);
-            log.info("Auction {} closed as UNSOLD, published AuctionClosedEvent", auction.getId());
-        }
+        applicationEventPublisher.publishEvent(new id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishUnsoldRabbitEvent(this, event));
+        log.info("Auction {} closed as UNSOLD, published local event for AuctionClosedEvent", auction.getId());
     }
 }

@@ -7,7 +7,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
-import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,16 +42,16 @@ class AuctionClosureDatabaseServiceTest {
     private BidRepository bidRepository;
 
     @Mock
-    private AuctionEventPort auctionEventPort;
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private AuctionClosureDatabaseService service;
 
     @Captor
-    private ArgumentCaptor<WinnerDeterminedEvent> winnerDeterminedCaptor;
+    private ArgumentCaptor<id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent> winnerDeterminedCaptor;
 
     @Captor
-    private ArgumentCaptor<AuctionClosedEvent> auctionClosedCaptor;
+    private ArgumentCaptor<id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishUnsoldRabbitEvent> auctionClosedCaptor;
 
     private Auction auction;
     private Bid highestBid;
@@ -87,10 +87,10 @@ class AuctionClosureDatabaseServiceTest {
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionRepository).save(auction);
-        verify(auctionEventPort).publishWinnerDetermined(winnerDeterminedCaptor.capture());
-        verifyNoMoreInteractions(auctionEventPort);
+        verify(applicationEventPublisher).publishEvent(winnerDeterminedCaptor.capture());
+        verifyNoMoreInteractions(applicationEventPublisher);
 
-        WinnerDeterminedEvent event = winnerDeterminedCaptor.getValue();
+        WinnerDeterminedEvent event = winnerDeterminedCaptor.getValue().getRabbitEventPayload();
         assertEquals("auc-1", event.getPayload().getAuctionId());
         assertEquals("buyer-1", event.getPayload().getWinnerUserId());
         assertEquals(150L, event.getPayload().getFinalPrice());
@@ -112,10 +112,10 @@ class AuctionClosureDatabaseServiceTest {
 
         assertEquals(AuctionStatus.UNSOLD, auction.getStatus());
         verify(auctionRepository).save(auction);
-        verify(auctionEventPort).publishAuctionClosed(auctionClosedCaptor.capture());
-        verifyNoMoreInteractions(auctionEventPort);
+        verify(applicationEventPublisher).publishEvent(auctionClosedCaptor.capture());
+        verifyNoMoreInteractions(applicationEventPublisher);
 
-        AuctionClosedEvent event = auctionClosedCaptor.getValue();
+        AuctionClosedEvent event = auctionClosedCaptor.getValue().getRabbitEventPayload();
         assertEquals("auc-1", event.getPayload().getAuctionId());
         assertEquals(1, event.getPayload().getAllBidderIds().size());
         assertEquals("AuctionClosed", event.getEventType());
@@ -130,7 +130,7 @@ class AuctionClosureDatabaseServiceTest {
         service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.UNSOLD, auction.getStatus());
-        verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
+        verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishUnsoldRabbitEvent.class));
     }
 
     @Test
@@ -144,7 +144,7 @@ class AuctionClosureDatabaseServiceTest {
         service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
-        verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
+        verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent.class));
     }
 
     @Test
@@ -158,7 +158,7 @@ class AuctionClosureDatabaseServiceTest {
         service.evaluateClosedAuction("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
-        verifyNoInteractions(auctionEventPort);
+        verifyNoInteractions(applicationEventPublisher);
         verifyNoInteractions(bidRepository);
     }
 
@@ -169,7 +169,7 @@ class AuctionClosureDatabaseServiceTest {
         service.evaluateClosedAuction("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
-        verifyNoInteractions(auctionEventPort);
+        verifyNoInteractions(applicationEventPublisher);
         verifyNoInteractions(bidRepository);
     }
 
@@ -184,7 +184,7 @@ class AuctionClosureDatabaseServiceTest {
         service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
-        verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
+        verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent.class));
     }
 
     @Test
@@ -196,12 +196,12 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
         when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1")).thenReturn(Collections.emptyList());
 
-        var inOrder = inOrder(auctionRepository, auctionEventPort);
+        var inOrder = inOrder(auctionRepository, applicationEventPublisher);
 
         service.evaluateClosedAuction("auc-1", now);
 
         inOrder.verify(auctionRepository).save(auction);
-        inOrder.verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
+        inOrder.verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent.class));
     }
 
     @Test
@@ -212,11 +212,11 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
         when(bidRepository.findDistinctBidderIdsByAuctionId("auc-1")).thenReturn(Collections.emptyList());
 
-        var inOrder = inOrder(auctionRepository, auctionEventPort);
+        var inOrder = inOrder(auctionRepository, applicationEventPublisher);
 
         service.evaluateClosedAuction("auc-1", now);
 
-        inOrder.verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
+        inOrder.verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishUnsoldRabbitEvent.class));
     }
 
     @Test
