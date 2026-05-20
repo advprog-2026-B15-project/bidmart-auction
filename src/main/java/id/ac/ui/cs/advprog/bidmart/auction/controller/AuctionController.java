@@ -12,7 +12,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.service.SseEmitterService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,9 +41,7 @@ public class AuctionController {
         summary = "List all auctions",
         description = "Returns a paginated list of auctions. Supports filtering by status and price range."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Successfully retrieved auction list")
-    })
+    @ApiResponse(responseCode = "200", description = "Successfully retrieved auction list")
     public ResponseEntity<Page<AuctionResponse>> findAll(
             @PageableDefault(size = 10) Pageable pageable,
             @Parameter(description = "Filter by auction status (DRAFT, ACTIVE, EXTENDED, CLOSED)")
@@ -59,10 +57,8 @@ public class AuctionController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get auction by ID", description = "Fetches the full detail of a specific auction.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Auction found"),
-        @ApiResponse(responseCode = "404", description = "Auction not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Auction found")
+    @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<AuctionResponse> findById(
             @Parameter(description = "Auction ID (UUID)", required = true)
             @PathVariable String id) {
@@ -74,11 +70,9 @@ public class AuctionController {
         summary = "Create a new auction",
         description = "Creates an auction in DRAFT state. Seller identity is taken from the X-User-Id header (injected by API Gateway)."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Auction created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request body"),
-        @ApiResponse(responseCode = "401", description = "Missing or invalid X-User-Id header")
-    })
+    @ApiResponse(responseCode = "201", description = "Auction created successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid request body")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid X-User-Id header")
     public ResponseEntity<AuctionResponse> create(
             @Valid @RequestBody CreateAuctionRequest req,
             @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
@@ -91,12 +85,10 @@ public class AuctionController {
         summary = "Update a draft auction",
         description = "Allows the seller to update editable fields (title, prices, endTime, minimumIncrement) while the auction is still in DRAFT status. Only the auction owner can perform this action."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Auction updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state"),
-        @ApiResponse(responseCode = "403", description = "Caller is not the auction owner"),
-        @ApiResponse(responseCode = "404", description = "Auction not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Auction updated successfully")
+    @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state")
+    @ApiResponse(responseCode = "403", description = "Caller is not the auction owner")
+    @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<AuctionResponse> update(
             @Parameter(description = "Auction ID", required = true) @PathVariable String id,
             @Valid @RequestBody UpdateAuctionRequest req,
@@ -110,12 +102,10 @@ public class AuctionController {
         summary = "Activate a draft auction",
         description = "Transitions an auction from DRAFT to ACTIVE. Only the seller who created it can activate it."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Auction activated successfully"),
-        @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state"),
-        @ApiResponse(responseCode = "403", description = "Caller is not the auction owner"),
-        @ApiResponse(responseCode = "404", description = "Auction not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Auction activated successfully")
+    @ApiResponse(responseCode = "400", description = "Auction is not in DRAFT state")
+    @ApiResponse(responseCode = "403", description = "Caller is not the auction owner")
+    @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<AuctionResponse> activate(
             @Parameter(description = "Auction ID", required = true) @PathVariable String id,
             @Parameter(hidden = true) @RequestAttribute("userId") String sellerId) {
@@ -130,12 +120,10 @@ public class AuctionController {
                       "If placed within the last 2 minutes, the auction end time is extended (Anti-Sniping rule). " +
                       "Concurrent bids are protected by a Redisson distributed lock."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Bid placed successfully"),
-        @ApiResponse(responseCode = "400", description = "Amount too low, auction not active, or seller bidding own auction"),
-        @ApiResponse(responseCode = "401", description = "Missing X-User-Id header"),
-        @ApiResponse(responseCode = "404", description = "Auction not found")
-    })
+    @ApiResponse(responseCode = "201", description = "Bid placed successfully")
+    @ApiResponse(responseCode = "400", description = "Amount too low, auction not active, or seller bidding own auction")
+    @ApiResponse(responseCode = "401", description = "Missing X-User-Id header")
+    @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<BidResponse> placeBid(
             @Parameter(description = "Auction ID", required = true) @PathVariable String id,
             @Valid @RequestBody PlaceBidRequest req,
@@ -146,10 +134,8 @@ public class AuctionController {
 
     @GetMapping("/{id}/bids")
     @Operation(summary = "Get bid history", description = "Returns all bids for the given auction, sorted by amount descending.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Bid history retrieved"),
-        @ApiResponse(responseCode = "404", description = "Auction not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Bid history retrieved")
+    @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<List<BidResponse>> getBidHistory(
             @Parameter(description = "Auction ID", required = true) @PathVariable String id) {
         List<BidResponse> bids = auctionService.getBidHistory(id);

@@ -2,8 +2,9 @@ package id.ac.ui.cs.advprog.bidmart.auction.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -24,9 +25,6 @@ class AuthInterceptorTest {
     @InjectMocks
     private AuthInterceptor authInterceptor;
 
-    @BeforeEach
-    void setUp() {
-    }
 
     @Test
     void testPreHandleGetRequestWithoutUserId() throws Exception {
@@ -50,32 +48,16 @@ class AuthInterceptorTest {
         verify(request).setAttribute("userId", "user-123");
     }
 
-    @Test
-    void testPreHandlePostRequestWithoutUserId() throws Exception {
-        when(request.getHeader("X-User-Id")).thenReturn(null);
-        when(request.getMethod()).thenReturn("POST");
-
-        boolean result = authInterceptor.preHandle(request, response, new Object());
-
-        assertFalse(result);
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "X-User-Id header is required for this action");
-    }
-
-    @Test
-    void testPreHandlePatchRequestWithoutUserId_isBlocked() throws Exception {
-        when(request.getHeader("X-User-Id")).thenReturn("   ");
-        when(request.getMethod()).thenReturn("PATCH");
-
-        boolean result = authInterceptor.preHandle(request, response, new Object());
-
-        assertFalse(result);
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "X-User-Id header is required for this action");
-    }
-
-    @Test
-    void testPreHandleDeleteRequestWithoutUserId_isBlocked() throws Exception {
-        when(request.getHeader("X-User-Id")).thenReturn("");
-        when(request.getMethod()).thenReturn("DELETE");
+    @ParameterizedTest
+    @CsvSource({
+        "null, POST",
+        "'   ', PATCH",
+        "'', DELETE"
+    })
+    void testPreHandleBlockedMethodsWithoutUserId(String headerValue, String method) throws Exception {
+        String actualHeaderValue = "null".equals(headerValue) ? null : headerValue;
+        when(request.getHeader("X-User-Id")).thenReturn(actualHeaderValue);
+        when(request.getMethod()).thenReturn(method);
 
         boolean result = authInterceptor.preHandle(request, response, new Object());
 

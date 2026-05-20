@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationEvent;
 
 @Getter
 public class PublishWinnerRabbitEvent extends ApplicationEvent {
-    private final WinnerDeterminedEvent rabbitEventPayload;
+    private final transient WinnerDeterminedEvent rabbitEventPayload;
 
     public PublishWinnerRabbitEvent(Object source, WinnerDeterminedEvent rabbitEventPayload) {
         super(source);

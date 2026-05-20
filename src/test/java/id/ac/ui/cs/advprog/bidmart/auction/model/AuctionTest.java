@@ -8,6 +8,7 @@ import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class AuctionTest {
 
@@ -72,7 +73,4 @@ class AuctionTest {
         assertEquals(AuctionStatus.ACTIVE, auction.getStatus());
     }
 
-    private void assertNotNull(Object obj) {
-        assertTrue(obj != null);
-    }
 }

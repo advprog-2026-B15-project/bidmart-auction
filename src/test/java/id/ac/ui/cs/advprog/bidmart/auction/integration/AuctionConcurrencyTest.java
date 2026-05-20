@@ -117,7 +117,7 @@ class AuctionConcurrencyTest {
             executorService.execute(() -> {
                 try {
                     latch.await();
-                    auctionService.placeBid(auctionId, "user-" + Thread.currentThread().getId(), bidAmount);
+                    auctionService.placeBid(auctionId, "user-" + java.util.UUID.randomUUID(), bidAmount);
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     System.err.println("Bid failed: " + e.getMessage());

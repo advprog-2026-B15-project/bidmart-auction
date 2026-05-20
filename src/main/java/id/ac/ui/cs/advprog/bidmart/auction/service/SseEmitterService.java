@@ -1,7 +1,6 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -11,7 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class SseEmitterService {
-    private static final Logger logger = LoggerFactory.getLogger(SseEmitterService.class);
+
     
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<SseEmitter>> emittersMap = new ConcurrentHashMap<>();
 
@@ -22,7 +21,7 @@ public class SseEmitterService {
 
         emitter.onCompletion(() -> removeEmitter(auctionId, emitter));
         emitter.onTimeout(() -> removeEmitter(auctionId, emitter));
-        emitter.onError((e) -> removeEmitter(auctionId, emitter));
+        emitter.onError(e -> removeEmitter(auctionId, emitter));
 
         try {
             emitter.send(SseEmitter.event().name("INIT").data("Connected to auction " + auctionId));

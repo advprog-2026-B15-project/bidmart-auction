@@ -11,7 +11,7 @@ group = "id.ac.ui.cs.advprog.bidmart"
 version = "0.0.1-SNAPSHOT"
 description = "bidmart-auction"
 val redissonVersion = "3.27.1"
-
+val springdocVersion = "2.8.5"
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -39,7 +39,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
     implementation("org.redisson:redisson-spring-boot-starter:$redissonVersion")
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
