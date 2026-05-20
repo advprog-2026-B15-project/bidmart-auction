@@ -64,7 +64,7 @@ class AuctionClosureDatabaseServiceTest {
         auction = new Auction();
         auction.setId("auc-1");
         auction.setTitle("Test Item");
-        auction.setStatus(AuctionStatus.ACTIVE);
+        auction.setStatus(AuctionStatus.CLOSED); // Changed to CLOSED for evaluate tests
         auction.setReservePrice(100L);
         auction.setSellerId("seller-1");
         auction.setListingId("listing-1");
@@ -83,7 +83,7 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1"))
                 .thenReturn(Arrays.asList("buyer-2", "buyer-3"));
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionRepository).save(auction);
@@ -108,7 +108,7 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findDistinctBidderIdsByAuctionId("auc-1"))
                 .thenReturn(Collections.singletonList("buyer-1"));
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.UNSOLD, auction.getStatus());
         verify(auctionRepository).save(auction);
@@ -127,7 +127,7 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.empty());
         when(bidRepository.findDistinctBidderIdsByAuctionId("auc-1")).thenReturn(Collections.emptyList());
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.UNSOLD, auction.getStatus());
         verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
@@ -141,7 +141,7 @@ class AuctionClosureDatabaseServiceTest {
         when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
         when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1")).thenReturn(Collections.emptyList());
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
@@ -155,7 +155,7 @@ class AuctionClosureDatabaseServiceTest {
 
         when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(alreadyWon));
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
         verifyNoInteractions(auctionEventPort);
@@ -166,7 +166,7 @@ class AuctionClosureDatabaseServiceTest {
     void closeAuction_auctionNotFound_skipsProcessing() {
         when(auctionRepository.findById("auc-1")).thenReturn(Optional.empty());
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
         verifyNoInteractions(auctionEventPort);
@@ -175,13 +175,13 @@ class AuctionClosureDatabaseServiceTest {
 
     @Test
     void closeAuction_extendedAuction_isEligibleForClosure() {
-        auction.setStatus(AuctionStatus.EXTENDED);
+        auction.setStatus(AuctionStatus.CLOSED);
 
         when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
         when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
         when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1")).thenReturn(Collections.emptyList());
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
@@ -198,7 +198,7 @@ class AuctionClosureDatabaseServiceTest {
 
         var inOrder = inOrder(auctionRepository, auctionEventPort);
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
         inOrder.verify(auctionRepository).save(auction);
         inOrder.verify(auctionEventPort).publishWinnerDetermined(any(WinnerDeterminedEvent.class));
@@ -214,9 +214,49 @@ class AuctionClosureDatabaseServiceTest {
 
         var inOrder = inOrder(auctionRepository, auctionEventPort);
 
-        service.closeAuction("auc-1", now);
+        service.evaluateClosedAuction("auc-1", now);
 
-        inOrder.verify(auctionRepository).save(auction);
         inOrder.verify(auctionEventPort).publishAuctionClosed(any(AuctionClosedEvent.class));
+    }
+
+    @Test
+    void markAsClosed_validAuction_setsStatusToClosedAndSaves() {
+        auction.setStatus(AuctionStatus.ACTIVE);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        assertEquals(AuctionStatus.CLOSED, auction.getStatus());
+        verify(auctionRepository).save(auction);
+    }
+
+    @Test
+    void markAsClosed_extendedAuction_setsStatusToClosedAndSaves() {
+        auction.setStatus(AuctionStatus.EXTENDED);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        assertEquals(AuctionStatus.CLOSED, auction.getStatus());
+        verify(auctionRepository).save(auction);
+    }
+
+    @Test
+    void markAsClosed_invalidStatus_skipsProcessing() {
+        auction.setStatus(AuctionStatus.WON);
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+
+        service.markAsClosed("auc-1", now);
+
+        verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void markAsClosed_auctionNotFound_skipsProcessing() {
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.empty());
+
+        service.markAsClosed("auc-1", now);
+
+        verify(auctionRepository, never()).save(any());
     }
 }

@@ -61,11 +61,67 @@ public class WalletRestAdapter implements HoldBalancePort {
                     throw new IllegalStateException("Server error (" + path + "): " + response.getStatusCode());
                 })
                 .toBodilessEntity();
+
+        // simulateLatencyForProfiling();
     }
 
     @Recover
     public void holdBalanceFallback(IllegalStateException e, String userId, String auctionId, Long amount) {
         log.error("Failed to hold balance for user={} auction={} after retries: {}", 
+                userId, auctionId, e.getMessage());
+        throw e;
+    }
+
+    @Override
+    @Retryable(
+        retryFor = { IllegalStateException.class },
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2.0)
+    )
+    public void releaseBalance(String userId, String auctionId, Long amount) {
+        String path = "/internal/wallet/release";
+        String endpoint = walletServiceUrl + path;
+        String idempotencyKey = auctionId + "-" + userId + "-release";
+
+        Map<String, Object> requestBody = Map.of(
+                "userId", userId,
+                "auctId", auctionId,
+                "amount", amount,
+                "idempotencyKey", idempotencyKey
+        );
+
+        restClient.post()
+                .uri(endpoint)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody)
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError(),
+                    (request, response) -> {
+                    throw new IllegalArgumentException("Client error (" + path + "): " + response.getStatusCode());
+                })
+                .onStatus(status -> status.is5xxServerError(),
+                    (request, response) -> {
+                    throw new IllegalStateException("Server error (" + path + "): " + response.getStatusCode());
+                })
+                .toBodilessEntity();
+
+        // simulateLatencyForProfiling();
+    }
+
+    protected void simulateLatencyForProfiling() {
+        log.info("[MOCK-WALLET] Bypassing external REST call to Wallet.");
+
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Profiling latency simulation interrupted", e);
+        }
+    }
+
+    @Recover
+    public void releaseBalanceFallback(IllegalStateException e, String userId, String auctionId, Long amount) {
+        log.error("Failed to release balance for user={} auction={} after retries: {}", 
                 userId, auctionId, e.getMessage());
         throw e;
     }

@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
@@ -64,7 +65,8 @@ class AuctionServiceBidTest {
             auctionEventPort,
             lockTemplate,
             sseEmitterService,
-            meterRegistry
+            meterRegistry,
+            new org.springframework.cache.concurrent.ConcurrentMapCacheManager("auction", "bidHistory")
         );
         auctionService.initMetrics();
         
@@ -85,7 +87,7 @@ class AuctionServiceBidTest {
     @Test
     void testPlaceBidSuccess() {
         when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-123")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-123")).thenReturn(Optional.empty());
 
         Bid result = auctionService.placeBid("auction-123", "bidder-1", 100000L);
 
@@ -102,7 +104,7 @@ class AuctionServiceBidTest {
         Bid oldBid = new Bid();
         oldBid.setBidderId("old-bidder");
         when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-123")).thenReturn(Collections.singletonList(oldBid));
+        when(bidRepository.findHighestBid("auction-123")).thenReturn(Optional.of(oldBid));
 
         Bid result = auctionService.placeBid("auction-123", "new-bidder", 200000L);
 
@@ -118,7 +120,7 @@ class AuctionServiceBidTest {
         OffsetDateTime originalEnd = auction.getEndTime();
 
         when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-123")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-123")).thenReturn(Optional.empty());
 
         auctionService.placeBid("auction-123", "bidder-1", 150000L);
 
@@ -132,7 +134,7 @@ class AuctionServiceBidTest {
         auction.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(1));
 
         when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-123")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-123")).thenReturn(Optional.empty());
 
         auctionService.placeBid("auction-123", "bidder-1", 150000L);
 
@@ -141,10 +143,10 @@ class AuctionServiceBidTest {
 
     @Test
     void testGetBidHistory() {
-        when(auctionRepository.findById("auction-123")).thenReturn(Optional.of(auction));
+        when(auctionRepository.existsById("auction-123")).thenReturn(true);
         when(bidRepository.findBidHistory("auction-123")).thenReturn(new ArrayList<>());
 
-        List<Bid> result = auctionService.getBidHistory("auction-123");
+        List<BidResponse> result = auctionService.getBidHistory("auction-123");
 
         assertNotNull(result);
         verify(bidRepository).findBidHistory("auction-123");

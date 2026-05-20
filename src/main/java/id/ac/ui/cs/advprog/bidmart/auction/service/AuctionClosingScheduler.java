@@ -41,37 +41,58 @@ public class AuctionClosingScheduler {
     @Scheduled(fixedRateString = "${bidmart.auction.scheduler.rate:60000}")
     public void closeExpiredAuctions() {
         lockTemplate.executeWithLock("auction-scheduler-lock", 0, -1, TimeUnit.SECONDS, () -> {
-            log.info("Starting expired auctions closing job");
+            log.info("Starting expired auctions closing job (Phase 1: Mark as CLOSED)");
 
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             List<Auction> expiredAuctions = auctionRepository.findExpiredByStatuses(
                     Arrays.asList(AuctionStatus.ACTIVE, AuctionStatus.EXTENDED), now);
 
-            if (expiredAuctions.isEmpty()) {
-                log.info("No expired auctions found, skipping job");
-                return null;
+            if (!expiredAuctions.isEmpty()) {
+                log.info("Found {} expired auctions to mark as CLOSED", expiredAuctions.size());
+
+                List<CompletableFuture<Void>> futures = expiredAuctions.stream()
+                        .map(auction -> CompletableFuture.runAsync(
+                                () -> processMarkAsClosed(auction, now),
+                                auctionClosureExecutor))
+                        .toList();
+
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             }
 
-            log.info("Found {} expired auctions to process in parallel", expiredAuctions.size());
+            log.info("Starting closed auctions evaluation job (Phase 2: Evaluate CLOSED)");
 
-            List<CompletableFuture<Void>> futures = expiredAuctions.stream()
-                    .map(auction -> CompletableFuture.runAsync(
-                            () -> processSingleAuction(auction, now),
-                            auctionClosureExecutor))
-                    .toList();
+            List<Auction> closedAuctions = auctionRepository.findByStatus(AuctionStatus.CLOSED);
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            if (!closedAuctions.isEmpty()) {
+                log.info("Found {} CLOSED auctions to evaluate", closedAuctions.size());
 
-            log.info("Finished expired auctions closing job, processed {} auctions", expiredAuctions.size());
+                List<CompletableFuture<Void>> futures = closedAuctions.stream()
+                        .map(auction -> CompletableFuture.runAsync(
+                                () -> processEvaluateClosedAuction(auction, now),
+                                auctionClosureExecutor))
+                        .toList();
+
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            }
+
+            log.info("Finished auctions closing job");
             return null;
         });
     }
 
-    private void processSingleAuction(Auction auction, OffsetDateTime now) {
+    private void processMarkAsClosed(Auction auction, OffsetDateTime now) {
         try {
-            auctionClosureService.processAuctionClosure(auction, now);
+            auctionClosureService.processMarkAsClosed(auction, now);
         } catch (Exception e) {
-            log.error("Error processing closure for auction {}: {}", auction.getId(), e.getMessage(), e);
+            log.error("Error marking auction {} as CLOSED: {}", auction.getId(), e.getMessage(), e);
+        }
+    }
+
+    private void processEvaluateClosedAuction(Auction auction, OffsetDateTime now) {
+        try {
+            auctionClosureService.processEvaluateClosedAuction(auction, now);
+        } catch (Exception e) {
+            log.error("Error evaluating CLOSED auction {}: {}", auction.getId(), e.getMessage(), e);
         }
     }
 }

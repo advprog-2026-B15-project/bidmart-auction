@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
@@ -82,7 +83,8 @@ class BidServiceTest {
             auctionEventPort, 
             lockTemplate, 
             sseEmitterService, 
-            meterRegistry
+            meterRegistry,
+            new org.springframework.cache.concurrent.ConcurrentMapCacheManager("auction", "bidHistory")
         );
         auctionService.initMetrics();
 
@@ -101,7 +103,7 @@ class BidServiceTest {
     @Test
     void testPlaceBidSuccessFirstBid() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -123,7 +125,7 @@ class BidServiceTest {
         previousBid.setAmount(500000L);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(List.of(previousBid));
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.of(previousBid));
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -140,7 +142,7 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.ACTIVE);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -156,7 +158,7 @@ class BidServiceTest {
         auction.setStatus(AuctionStatus.EXTENDED);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -170,7 +172,7 @@ class BidServiceTest {
         auction.setEndTime(null);
 
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
-        when(bidRepository.findBidHistory("auction-101")).thenReturn(Collections.emptyList());
+        when(bidRepository.findHighestBid("auction-101")).thenReturn(Optional.empty());
         when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
 
@@ -228,13 +230,15 @@ class BidServiceTest {
     void testGetBidHistory() {
         Bid bid1 = new Bid();
         bid1.setAmount(600000L);
+        bid1.setAuction(auction);
         Bid bid2 = new Bid();
         bid2.setAmount(500000L);
+        bid2.setAuction(auction);
 
-        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(auctionRepository.existsById("auction-101")).thenReturn(true);
         when(bidRepository.findBidHistory("auction-101")).thenReturn(Arrays.asList(bid1, bid2));
 
-        List<Bid> result = auctionService.getBidHistory("auction-101");
+        List<BidResponse> result = auctionService.getBidHistory("auction-101");
 
         assertEquals(2, result.size());
         assertEquals(600000L, result.get(0).getAmount());
@@ -242,7 +246,7 @@ class BidServiceTest {
 
     @Test
     void testGetBidHistoryAuctionNotFound() {
-        when(auctionRepository.findById("invalid-id")).thenReturn(Optional.empty());
+        when(auctionRepository.existsById("invalid-id")).thenReturn(false);
 
         assertThrows(java.util.NoSuchElementException.class, () ->
                 auctionService.getBidHistory("invalid-id"));

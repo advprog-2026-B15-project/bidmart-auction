@@ -19,9 +19,9 @@ public class RedisCacheConfig {
     public CacheManager cacheManager(RedissonClient redissonClient) {
         Map<String, CacheConfig> config = new HashMap<>();
 
-        config.put("auction", new CacheConfig(300000, 300000));
+        config.put("auction", new CacheConfig(900000, 900000));
 
-        config.put("bidHistory", new CacheConfig(120000, 120000));
+        config.put("bidHistory", new CacheConfig(900000, 900000));
 
         return new RedissonSpringCacheManager(redissonClient, config);
     }

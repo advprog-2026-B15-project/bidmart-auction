@@ -17,11 +17,20 @@ public class AuctionClosureService {
     private final DistributedLockTemplate lockTemplate;
     private final AuctionClosureDatabaseService auctionClosureDatabaseService;
 
-    public void processAuctionClosure(Auction auction, OffsetDateTime closedAt) {
+    public void processMarkAsClosed(Auction auction, OffsetDateTime closedAt) {
         lockTemplate.executeWithLock(
                 "auction-lock-" + auction.getId(), 5, 10, TimeUnit.SECONDS,
                 () -> {
-                    auctionClosureDatabaseService.closeAuction(auction.getId(), closedAt);
+                    auctionClosureDatabaseService.markAsClosed(auction.getId(), closedAt);
+                    return null;
+                });
+    }
+
+    public void processEvaluateClosedAuction(Auction auction, OffsetDateTime evaluatedAt) {
+        lockTemplate.executeWithLock(
+                "auction-lock-" + auction.getId(), 5, 10, TimeUnit.SECONDS,
+                () -> {
+                    auctionClosureDatabaseService.evaluateClosedAuction(auction.getId(), evaluatedAt);
                     return null;
                 });
     }

@@ -12,7 +12,6 @@ import static org.springframework.test.web.client.ExpectedCount.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
@@ -31,6 +30,8 @@ class WalletRestAdapterTest {
 
     @Autowired
     private MockRestServiceServer server;
+
+    // ===== holdBalance tests =====
 
     @Test
     void testHoldBalanceSuccess() {
@@ -78,6 +79,56 @@ class WalletRestAdapterTest {
 
         assertDoesNotThrow(() ->
             walletRestAdapter.holdBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testReleaseBalanceSuccess() {
+        server.expect(requestTo("http://localhost:8080/internal/wallet/release"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.userId").value("user-001"))
+                .andExpect(jsonPath("$.auctId").value("auction-001"))
+                .andExpect(jsonPath("$.amount").value(500000))
+                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001-release"))
+                .andRespond(withSuccess());
+
+        walletRestAdapter.releaseBalance("user-001", "auction-001", 500000L);
+        server.verify();
+    }
+
+    @Test
+    void testReleaseBalanceError4xx_noRetry() {
+        server.expect(times(1), requestTo("http://localhost:8080/internal/wallet/release"))
+                .andRespond(withBadRequest());
+
+        assertThrows(Exception.class, () ->
+            walletRestAdapter.releaseBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testReleaseBalanceError5xx_retriesAndFails() {
+        server.expect(times(3), requestTo("http://localhost:8080/internal/wallet/release"))
+                .andRespond(withServerError());
+
+        assertThrows(IllegalStateException.class, () ->
+            walletRestAdapter.releaseBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testReleaseBalanceError5xx_retriesAndSucceeds() {
+        server.expect(requestTo("http://localhost:8080/internal/wallet/release"))
+                .andRespond(withServerError());
+        server.expect(requestTo("http://localhost:8080/internal/wallet/release"))
+                .andRespond(withSuccess());
+
+        assertDoesNotThrow(() ->
+            walletRestAdapter.releaseBalance("user-001", "auction-001", 500000L)
         );
         server.verify();
     }

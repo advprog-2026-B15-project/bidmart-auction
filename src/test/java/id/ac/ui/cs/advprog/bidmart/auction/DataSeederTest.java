@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmart.auction;
 
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
+import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,11 +33,11 @@ class DataSeederTest {
     @Test
     void testRunSeederSuccess() {
         when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+        when(bidRepository.save(any(Bid.class))).thenAnswer(i -> i.getArgument(0));
 
         dataSeeder.run();
 
-        verify(bidRepository, times(1)).deleteAllInBatch();
-        verify(auctionRepository, times(1)).deleteAllInBatch();
-        verify(auctionRepository, times(50)).save(any(Auction.class));
+        verify(auctionRepository, times(51)).save(any(Auction.class));
+        verify(bidRepository, times(1000)).save(any(Bid.class));
     }
 }

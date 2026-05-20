@@ -10,9 +10,11 @@ import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import id.ac.ui.cs.advprog.bidmart.auction.dto.BidPlacedEvent;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -42,6 +44,7 @@ public class AuctionService {
     private final DistributedLockTemplate lockTemplate;
     private final SseEmitterService sseEmitterService;
     private final MeterRegistry meterRegistry;
+    private final CacheManager cacheManager;
 
     private Counter bidPlacedCounter;
     private Timer bidLatencyTimer;
@@ -129,38 +132,52 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
-    @CacheEvict(value = {"auction", "bidHistory"}, key = "#auctionId")
     public Bid placeBid(String auctionId, String bidderId, Long amount) {
         String lockKey = "auction-lock-" + auctionId;
         return bidLatencyTimer.record(() -> {
-            Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-                Auction auction = getAuctionOrThrow(auctionId);
+            Auction preliminaryAuction = getAuctionOrThrow(auctionId);
+            if (bidderId.equals(preliminaryAuction.getSellerId())) {
+                throw new IllegalArgumentException("Seller cannot bid on own auction");
+            }
+            for (BidValidationStrategy strategy : validationStrategies) {
+                strategy.validate(preliminaryAuction, amount);
+            }
 
-                if (bidderId.equals(auction.getSellerId())) {
-                    throw new IllegalArgumentException("Seller cannot bid on own auction");
-                }
+            holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
-                for (BidValidationStrategy strategy : validationStrategies) {
-                    strategy.validate(auction, amount);
-                }
+            try {
+                Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
+                    Auction auction = getAuctionOrThrow(auctionId);
 
-                String previousBidderId = getPreviousBidderId(auctionId);
-                holdBalancePort.holdBalance(bidderId, auctionId, amount);
+                    if (bidderId.equals(auction.getSellerId())) {
+                        throw new IllegalArgumentException("Seller cannot bid on own auction");
+                    }
 
-                handleAntiSniping(auction);
-                Bid bid = createAndSaveBid(auction, bidderId, amount);
-                publishBidEvents(auction, bid, previousBidderId);
+                    for (BidValidationStrategy strategy : validationStrategies) {
+                        strategy.validate(auction, amount);
+                    }
 
-                return bid;
-            });
-            bidPlacedCounter.increment();
-            return result;
+                    String previousBidderId = getPreviousBidderId(auctionId);
+
+                    handleAntiSniping(auction);
+                    Bid bid = createAndSaveBid(auction, bidderId, amount);
+                    publishBidEvents(auction, bid, previousBidderId);
+
+                    return bid;
+                });
+                bidPlacedCounter.increment();
+                return result;
+            } catch (Exception e) {
+                holdBalancePort.releaseBalance(bidderId, auctionId, amount);
+                throw e;
+            }
         });
     }
 
     private String getPreviousBidderId(String auctionId) {
-        List<Bid> history = bidRepository.findBidHistory(auctionId);
-        return history.isEmpty() ? null : history.get(0).getBidderId();
+        return bidRepository.findHighestBid(auctionId)
+                .map(Bid::getBidderId)
+                .orElse(null);
     }
 
     private void handleAntiSniping(Auction auction) {
@@ -182,6 +199,22 @@ public class AuctionService {
 
         auction.setCurrentPrice(amount);
         auctionRepository.save(auction);
+
+        var auctionCache = cacheManager.getCache("auction");
+        if (auctionCache != null) {
+            auctionCache.put(auction.getId(), auction);
+        }
+
+        var bidHistoryCache = cacheManager.getCache("bidHistory");
+        if (bidHistoryCache != null) {
+            List<BidResponse> history = bidHistoryCache.get(auction.getId(), List.class);
+            if (history != null) {
+                List<BidResponse> updatedHistory = new java.util.ArrayList<>(history);
+                updatedHistory.add(0, BidResponse.from(bid));
+                bidHistoryCache.put(auction.getId(), updatedHistory);
+            }
+        }
+
         return bid;
     }
 
@@ -216,8 +249,12 @@ public class AuctionService {
     }
 
     @Cacheable(value = "bidHistory", key = "#auctionId")
-    public List<Bid> getBidHistory(String auctionId) {
-        getAuctionOrThrow(auctionId);
-        return bidRepository.findBidHistory(auctionId);
+    public List<BidResponse> getBidHistory(String auctionId) {
+        if (!auctionRepository.existsById(auctionId)) {
+            throw new NoSuchElementException("Auction not found");
+        }
+        return bidRepository.findBidHistory(auctionId).stream()
+                .map(BidResponse::from)
+                .toList();
     }
 }

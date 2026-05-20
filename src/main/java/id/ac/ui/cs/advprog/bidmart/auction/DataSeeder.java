@@ -26,17 +26,29 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        log.info("[DataSeeder] Cleaning up existing data...");
-        bidRepository.deleteAllInBatch();
-        auctionRepository.deleteAllInBatch();
+        if (auctionRepository.count() > 0) {
+            log.info("[DataSeeder] Database already has data. Skipping fresh seeding to preserve your manual test data.");
+            return;
+        }
 
         log.info("[DataSeeder] Seeding fresh data scenarios...");
 
         // 1. DRAFT
         createAuction("Vintage Camera", "listing-001", "seller-1@mail.com", 500000L, AuctionStatus.DRAFT, 7);
 
-        // 2. ACTIVE (No bids)
-        createAuction("Gaming Laptop", "listing-002", "seller-2@mail.com", 15000000L, AuctionStatus.ACTIVE, 3);
+        // 2. ACTIVE (With 1000 Bids Load)
+        Auction laptopAuction = createAuction("Gaming Laptop", "listing-002", "seller-2@mail.com", 15000000L, AuctionStatus.ACTIVE, 3);
+
+        log.info("[DataSeeder] Seeding 1000 historical bids for Gaming Laptop (listing-002) to simulate heavy load...");
+        for (int i = 1; i <= 1000; i++) {
+            id.ac.ui.cs.advprog.bidmart.auction.model.Bid b = new id.ac.ui.cs.advprog.bidmart.auction.model.Bid();
+            b.setAuction(laptopAuction);
+            b.setBidderId("bidder-load-" + i);
+            b.setAmount(10000000L + (i * 5000L)); // Incrementing prices
+            bidRepository.save(b);
+        }
+        laptopAuction.setCurrentPrice(10000000L + (1000 * 5000L));
+        auctionRepository.save(laptopAuction);
 
         // 3. ACTIVE (With high activity)
         createAuction("Limited Edition Sneakers", "listing-003", "seller-3@mail.com", 2500000L, AuctionStatus.ACTIVE, 5);
@@ -62,7 +74,7 @@ public class DataSeeder implements CommandLineRunner {
         log.info("[DataSeeder] Done seeding database.");
     }
 
-    private void createAuction(String title, String listingId, String sellerId, Long currentPrice, AuctionStatus status, int daysFromNow) {
+    private Auction createAuction(String title, String listingId, String sellerId, Long currentPrice, AuctionStatus status, int daysFromNow) {
         Auction a = new Auction();
         a.setTitle(title);
         a.setListingId(listingId);
@@ -72,6 +84,6 @@ public class DataSeeder implements CommandLineRunner {
         a.setMinimumIncrement(50000L);
         a.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(daysFromNow).plusMinutes(10)); // Tambah buffer waktu
         a.setStatus(status);
-        auctionRepository.save(a);
+        return auctionRepository.save(a);
     }
 }

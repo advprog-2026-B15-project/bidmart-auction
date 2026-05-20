@@ -33,7 +33,7 @@ public class AuctionClosureDatabaseService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "auction", key = "#auctionId")
-    public void closeAuction(String auctionId, OffsetDateTime closedAt) {
+    public void markAsClosed(String auctionId, OffsetDateTime closedAt) {
         Auction auction = auctionRepository.findById(auctionId).orElse(null);
         if (auction == null
                 || (auction.getStatus() != AuctionStatus.ACTIVE
@@ -42,7 +42,21 @@ public class AuctionClosureDatabaseService {
             return;
         }
 
-        log.info("Processing closure for auction {}", auctionId);
+        log.info("Marking auction {} as CLOSED", auctionId);
+        auction.setStatus(AuctionStatus.CLOSED);
+        auctionRepository.save(auction);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @CacheEvict(value = "auction", key = "#auctionId")
+    public void evaluateClosedAuction(String auctionId, OffsetDateTime evaluatedAt) {
+        Auction auction = auctionRepository.findById(auctionId).orElse(null);
+        if (auction == null || auction.getStatus() != AuctionStatus.CLOSED) {
+            log.debug("Auction {} is not in CLOSED state, skipping evaluation", auctionId);
+            return;
+        }
+
+        log.info("Processing evaluation for CLOSED auction {}", auctionId);
 
         Optional<Bid> highestBidOpt = bidRepository.findHighestBid(auctionId);
         Long reservePrice = auction.getReservePrice();
@@ -51,9 +65,9 @@ public class AuctionClosureDatabaseService {
                 && (reservePrice == null || highestBidOpt.get().getAmount() >= reservePrice);
 
         if (meetsReservePrice) {
-            closeAsWon(auction, highestBidOpt.get(), closedAt);
+            closeAsWon(auction, highestBidOpt.get(), evaluatedAt);
         } else {
-            closeAsUnsold(auction, closedAt);
+            closeAsUnsold(auction, evaluatedAt);
         }
     }
 

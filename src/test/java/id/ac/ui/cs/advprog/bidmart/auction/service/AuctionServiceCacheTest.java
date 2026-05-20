@@ -129,19 +129,22 @@ class AuctionServiceCacheTest {
     }
 
     @Test
-    void testPlaceBidEvictsCaches() {
-        auctionService.findById("auc-123");
+    void testPlaceBidUpdatesCache() {
+        when(auctionRepository.existsById("auc-123")).thenReturn(true);
+        auctionService.findById("auc-123"); 
         auctionService.getBidHistory("auc-123");
-
         auction.setStatus(id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus.ACTIVE);
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
         auctionService.placeBid("auc-123", "buyer-1", 1000L);
 
-        auctionService.findById("auc-123");
+
+        auctionService.findById("auc-123"); 
         auctionService.getBidHistory("auc-123");
 
-        verify(auctionRepository, times(5)).findById("auc-123");
+        verify(auctionRepository, times(3)).findById("auc-123");
+        verify(auctionRepository, times(1)).existsById("auc-123");
 
-        verify(bidRepository, times(3)).findBidHistory("auc-123");
+        verify(bidRepository, times(1)).findBidHistory("auc-123");
+        verify(bidRepository, times(1)).findHighestBid("auc-123");
     }
 }

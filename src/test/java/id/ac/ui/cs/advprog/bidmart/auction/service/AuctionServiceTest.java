@@ -55,7 +55,8 @@ class AuctionServiceTest {
             auctionEventPort,
             lockTemplate,
             sseEmitterService,
-            meterRegistry
+            meterRegistry,
+            new org.springframework.cache.concurrent.ConcurrentMapCacheManager("auction", "bidHistory")
         );
         auctionService.initMetrics();
 
