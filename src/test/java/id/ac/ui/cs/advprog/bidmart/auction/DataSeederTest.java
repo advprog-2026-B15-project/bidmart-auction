@@ -4,7 +4,6 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
