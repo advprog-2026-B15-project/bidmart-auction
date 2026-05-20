@@ -48,6 +48,8 @@ class AuctionServiceBidTest {
     private DistributedLockTemplate lockTemplate;
     @Mock
     private SseEmitterService sseEmitterService;
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
 
     private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
@@ -66,7 +68,7 @@ class AuctionServiceBidTest {
             lockTemplate,
             sseEmitterService,
             meterRegistry,
-            new org.springframework.cache.concurrent.ConcurrentMapCacheManager("auction", "bidHistory")
+            applicationEventPublisher
         );
         auctionService.initMetrics();
         

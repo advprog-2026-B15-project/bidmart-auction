@@ -43,7 +43,7 @@ graph TD
 |---|---|
 | **Concurrency / Race Conditions** | Redisson Distributed Lock per auction ID, only one bid processed at a time |
 | **Anti-Sniping** | Bids within 2 min of end time auto-extend auction by 2 minutes (`ACTIVE` -> `EXTENDED`) |
-| **Async Communication** | RabbitMQ events notify Wallet, Notification, and Catalog services asynchronously |
+| **Async Communication** | [RabbitMQ Event Contract](docs/event_contract.md) notifies Wallet, Booking, and Catalog services asynchronously |
 | **Caching** | Spring Cache + Redis caches auction details and bid history to reduce DB load |
 | **Authentication** | `AuthInterceptor` reads `X-User-Id` header forwarded by API Gateway |
 
@@ -61,7 +61,7 @@ graph TD
 | API Documentation | SpringDoc OpenAPI (Swagger UI) |
 | Metrics | Micrometer + Prometheus |
 | Test | JUnit 5, Mockito, H2 (in-memory) |
-| CI/CD | GitHub Actions + SonarCloud |
+| CI/CD | GitHub Actions + SonarCloud + GHCR |
 
 ## Prerequisites
 
@@ -112,39 +112,6 @@ cp .env.example .env
 The application will start on **`http://localhost:8083`**.
 
 > **Note:** On first startup, `DataSeeder` automatically seeds 50 sample auctions for local testing. This only runs when the `test` Spring profile is NOT active.
-
-## Auction Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT : Seller creates auction
-
-    DRAFT --> ACTIVE : Seller activates
-    DRAFT --> DRAFT : Seller edits details
-
-    ACTIVE --> EXTENDED : Bid received in last 2 min (Anti-Sniping)
-    ACTIVE --> CLOSED : End time reached
-
-    EXTENDED --> EXTENDED : Bid received in last 2 min
-    EXTENDED --> CLOSED : End time reached
-
-    CLOSED --> WON : Reserve price met (Highest bid wins)
-    CLOSED --> UNSOLD : Reserve price not met or no bids
-
-    WON --> [*]
-    UNSOLD --> [*]
-```
-
-| Status | Description | Allowed Operations |
-|---|---|---|
-| `DRAFT` | Newly created, not yet public | Seller can edit details, activate |
-| `ACTIVE` | Open for bidding | Buyers can place bids |
-| `EXTENDED` | Extended due to anti-sniping rule | Buyers can still place bids |
-| `CLOSED` | Time expired, evaluating winner | System transitions to WON or UNSOLD |
-| `WON` | Reserve price met, winner determined | Read-only |
-| `UNSOLD` | Reserve price not met or no bids | Read-only |
-
-> **Note:** Winner is determined by querying the highest bid at the time of closure. The transition `CLOSED -> WON/UNSOLD` is handled automatically by the `AuctionClosingScheduler`.
 
 ## API Reference
 
@@ -239,6 +206,6 @@ The project enforces a minimum **80% code coverage** on all non-DTO/config class
 The repository uses GitHub Actions for automated pipelines:
 
 - **CI (on every push)**: `./gradlew test` -> SonarCloud analysis -> Coverage check
-- **CD (on push to `main`)**: Build Docker image -> Deploy to cloud environment
+- **CD (on push to `main`)**: Build Docker image -> Push to **GitHub Container Registry (GHCR)** -> Deploy to AWS EC2
 
 See `.github/workflows/` for pipeline definitions.

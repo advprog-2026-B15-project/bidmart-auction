@@ -87,4 +87,14 @@ public class Auction implements java.io.Serializable {
     public void preUpdate() {
         updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
+
+    public void applyAntiSnipingRule() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (endTime != null && now.plusMinutes(2).isAfter(endTime)) {
+            endTime = endTime.plusMinutes(2);
+            if (status == AuctionStatus.ACTIVE) {
+                status = AuctionStatus.EXTENDED;
+            }
+        }
+    }
 }
