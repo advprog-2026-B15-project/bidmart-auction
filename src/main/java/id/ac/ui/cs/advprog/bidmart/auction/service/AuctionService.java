@@ -136,35 +136,13 @@ public class AuctionService {
         String lockKey = "auction-lock-" + auctionId;
         return bidLatencyTimer.record(() -> {
             Auction preliminaryAuction = getAuctionOrThrow(auctionId);
-            if (bidderId.equals(preliminaryAuction.getSellerId())) {
-                throw new IllegalArgumentException("Seller cannot bid on own auction");
-            }
-            for (BidValidationStrategy strategy : validationStrategies) {
-                strategy.validate(preliminaryAuction, amount);
-            }
+            validateBid(preliminaryAuction, bidderId, amount);
 
             holdBalancePort.holdBalance(bidderId, auctionId, amount);
 
             try {
-                Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, () -> {
-                    Auction auction = getAuctionOrThrow(auctionId);
-
-                    if (bidderId.equals(auction.getSellerId())) {
-                        throw new IllegalArgumentException("Seller cannot bid on own auction");
-                    }
-
-                    for (BidValidationStrategy strategy : validationStrategies) {
-                        strategy.validate(auction, amount);
-                    }
-
-                    String previousBidderId = getPreviousBidderId(auctionId);
-
-                    auction.applyAntiSnipingRule();
-                    Bid bid = createAndSaveBid(auction, bidderId, amount);
-                    publishBidEvents(auction, bid, previousBidderId);
-
-                    return bid;
-                });
+                Bid result = lockTemplate.executeWithLock(lockKey, 5, 10, TimeUnit.SECONDS, 
+                        () -> executeBidUnderLock(auctionId, bidderId, amount));
                 bidPlacedCounter.increment();
                 return result;
             } catch (Exception e) {
@@ -174,13 +152,33 @@ public class AuctionService {
         });
     }
 
+    private void validateBid(Auction auction, String bidderId, Long amount) {
+        if (bidderId.equals(auction.getSellerId())) {
+            throw new IllegalArgumentException("Seller cannot bid on own auction");
+        }
+        for (BidValidationStrategy strategy : validationStrategies) {
+            strategy.validate(auction, amount);
+        }
+    }
+
+    private Bid executeBidUnderLock(String auctionId, String bidderId, Long amount) {
+        Auction auction = getAuctionOrThrow(auctionId);
+        validateBid(auction, bidderId, amount);
+
+        String previousBidderId = getPreviousBidderId(auctionId);
+
+        auction.applyAntiSnipingRule();
+        Bid bid = createAndSaveBid(auction, bidderId, amount);
+        publishBidEvents(auction, bid, previousBidderId);
+
+        return bid;
+    }
+
     private String getPreviousBidderId(String auctionId) {
         return bidRepository.findHighestBid(auctionId)
                 .map(Bid::getBidderId)
                 .orElse(null);
     }
-
-
 
     private Bid createAndSaveBid(Auction auction, String bidderId, Long amount) {
         Bid bid = new Bid();
