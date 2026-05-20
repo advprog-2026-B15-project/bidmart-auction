@@ -159,7 +159,7 @@ public class AuctionService {
 
                     String previousBidderId = getPreviousBidderId(auctionId);
 
-                    handleAntiSniping(auction);
+                    auction.applyAntiSnipingRule();
                     Bid bid = createAndSaveBid(auction, bidderId, amount);
                     publishBidEvents(auction, bid, previousBidderId);
 
@@ -180,15 +180,7 @@ public class AuctionService {
                 .orElse(null);
     }
 
-    private void handleAntiSniping(Auction auction) {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        if (auction.getEndTime() != null && now.plusMinutes(2).isAfter(auction.getEndTime())) {
-            auction.setEndTime(auction.getEndTime().plusMinutes(2));
-            if (auction.getStatus() == AuctionStatus.ACTIVE) {
-                auction.setStatus(AuctionStatus.EXTENDED);
-            }
-        }
-    }
+
 
     private Bid createAndSaveBid(Auction auction, String bidderId, Long amount) {
         Bid bid = new Bid();
