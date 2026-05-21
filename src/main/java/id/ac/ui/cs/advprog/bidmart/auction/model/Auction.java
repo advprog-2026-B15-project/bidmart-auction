@@ -21,7 +21,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "auctions")
-public class Auction {
+public class Auction implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -60,7 +61,7 @@ public class Auction {
     private String listingId; // referensi ke Catalog module
 
     @Column(name = "seller_id", nullable = false, length = 255)
-    private String sellerId; // Berisi email dari Auth module
+    private String sellerId; // berisi email dari Auth module
 
     @jakarta.persistence.Version
     private Integer version;
@@ -85,5 +86,15 @@ public class Auction {
     @PreUpdate
     public void preUpdate() {
         updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void applyAntiSnipingRule() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        if (endTime != null && now.plusMinutes(2).isAfter(endTime)) {
+            endTime = endTime.plusMinutes(2);
+            if (status == AuctionStatus.ACTIVE) {
+                status = AuctionStatus.EXTENDED;
+            }
+        }
     }
 }

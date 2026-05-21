@@ -11,7 +11,7 @@ group = "id.ac.ui.cs.advprog.bidmart"
 version = "0.0.1-SNAPSHOT"
 description = "bidmart-auction"
 val redissonVersion = "3.27.1"
-
+val springdocVersion = "2.8.5"
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -33,10 +33,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
     implementation("org.redisson:redisson-spring-boot-starter:$redissonVersion")
     implementation("io.jsonwebtoken:jjwt-api:0.12.6")
@@ -64,6 +67,29 @@ tasks.jacocoTestReport {
         html.required.set(true)
         html.outputLocation.set(layout.buildDirectory.dir("reports/jacocoHtml"))
     }
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "**/config/**",
+                    "**/dto/**",
+                    "**/*Application*",
+                    "**/BidmartAuctionApplication*"
+                )
+            }
+        })
+    )
 }
 
 tasks.test {

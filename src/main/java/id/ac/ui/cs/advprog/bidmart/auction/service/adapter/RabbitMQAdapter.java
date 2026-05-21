@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.dto.WinnerDeterminedEvent;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,6 +16,7 @@ public class RabbitMQAdapter implements AuctionEventPort {
 
     private final RabbitTemplate rabbitTemplate;
 
+    @Async("notificationExecutor")
     @Override
     public void publishBidPlaced(BidPlacedEvent event) {
         rabbitTemplate.convertAndSend(

@@ -21,14 +21,15 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "bids")
-public class Bid {
+public class Bid implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false, nullable = false, length = 36)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "auction_id", nullable = false)
     private Auction auction;
 

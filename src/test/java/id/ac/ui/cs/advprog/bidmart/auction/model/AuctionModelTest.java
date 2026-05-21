@@ -11,7 +11,6 @@ class AuctionModelTest {
 
     @Test
     void testPrePersistSetsDefaultsWhenNull() {
-        // Semua field null sebelum persist
         Auction auction = new Auction();
         assertNull(auction.getStatus());
         assertNull(auction.getCurrentPrice());
@@ -20,7 +19,6 @@ class AuctionModelTest {
 
         auction.prePersist();
 
-        // Semua field terisi default
         assertEquals(AuctionStatus.DRAFT, auction.getStatus());
         assertEquals(0L, auction.getCurrentPrice());
         assertNotNull(auction.getCreatedAt());
@@ -29,7 +27,6 @@ class AuctionModelTest {
 
     @Test
     void testPrePersistDoesNotOverrideExistingValues() {
-        // Semua field sudah terisi sebelum persist
         Auction auction = new Auction();
         auction.setStatus(AuctionStatus.ACTIVE);
         auction.setCurrentPrice(500000L);
@@ -39,7 +36,6 @@ class AuctionModelTest {
 
         auction.prePersist();
 
-        // Field tidak ditimpa
         assertEquals(AuctionStatus.ACTIVE, auction.getStatus());
         assertEquals(500000L, auction.getCurrentPrice());
         assertEquals(existingTime, auction.getCreatedAt());
@@ -54,7 +50,6 @@ class AuctionModelTest {
 
         auction.preUpdate();
 
-        // updatedAt harus berubah ke waktu terkini
         assertTrue(auction.getUpdatedAt().isAfter(before));
     }
 

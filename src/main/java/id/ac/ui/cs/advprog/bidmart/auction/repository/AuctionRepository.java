@@ -5,17 +5,20 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 
 @Repository
-public interface AuctionRepository extends JpaRepository<Auction, String> {
+public interface AuctionRepository extends JpaRepository<Auction, String>, JpaSpecificationExecutor<Auction> {
     List<Auction> findBySellerId(String sellerId);
     List<Auction> findByStatus(AuctionStatus status);
     List<Auction> findByListingId(String listingId);
 
     @Query("SELECT a FROM Auction a WHERE a.status IN :statuses AND a.endTime < :now")
     List<Auction> findExpiredByStatuses(@Param("statuses") List<AuctionStatus> statuses, @Param("now") OffsetDateTime now);
+
+    long countByStatusIn(List<AuctionStatus> statuses);
 }

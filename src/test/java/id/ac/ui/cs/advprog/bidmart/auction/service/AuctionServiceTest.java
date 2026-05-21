@@ -7,14 +7,15 @@ import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,8 +27,21 @@ class AuctionServiceTest {
 
     @Mock
     private AuctionRepository auctionRepository;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository bidRepository;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort holdBalancePort;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort auctionEventPort;
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate lockTemplate;
+    @Mock
+    private SseEmitterService sseEmitterService;
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+    
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    @InjectMocks
     private AuctionService auctionService;
 
     private Auction auction;
@@ -35,6 +49,19 @@ class AuctionServiceTest {
 
     @BeforeEach
     void setUp() {
+        auctionService = new AuctionService(
+            auctionRepository,
+            bidRepository,
+            java.util.Collections.emptyList(),
+            holdBalancePort,
+            auctionEventPort,
+            lockTemplate,
+            sseEmitterService,
+            meterRegistry,
+            applicationEventPublisher
+        );
+        auctionService.initMetrics();
+
         auction = new Auction();
         auction.setId("auction-101");
         auction.setListingId("listing-001");
@@ -99,19 +126,29 @@ class AuctionServiceTest {
         verify(auctionRepository, never()).save(any());
     }
 
-    // ===== FIND =====
-
     @Test
     void testFindAllAuctions() {
         Auction auction2 = new Auction();
         auction2.setTitle("Mechanical Keyboard");
 
-        when(auctionRepository.findAll()).thenReturn(Arrays.asList(auction, auction2));
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction, auction2));
+        when(auctionRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
 
-        List<Auction> result = auctionService.findAll();
+        org.springframework.data.domain.Page<Auction> result = auctionService.findAll(org.springframework.data.domain.Pageable.unpaged(), null, null, null);
 
-        assertEquals(2, result.size());
-        verify(auctionRepository, times(1)).findAll();
+        assertEquals(2, result.getContent().size());
+        verify(auctionRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void testFindAllAuctionsWithFilters() {
+        org.springframework.data.domain.Page<Auction> page = new org.springframework.data.domain.PageImpl<>(Arrays.asList(auction));
+        when(auctionRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+
+        org.springframework.data.domain.Page<Auction> result = auctionService.findAll(org.springframework.data.domain.Pageable.unpaged(), AuctionStatus.ACTIVE, 100L, 500L);
+
+        assertNotNull(result);
+        verify(auctionRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
     }
 
     @Test
@@ -176,5 +213,102 @@ class AuctionServiceTest {
         });
 
         verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateAuctionSuccess() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Updated Title");
+        req.setMinimumIncrement(75000L);
+
+        Auction result = auctionService.update("auction-101", "seller-001", req);
+
+        assertEquals("Updated Title", result.getTitle());
+        assertEquals(75000L, result.getMinimumIncrement());
+        verify(auctionRepository, times(1)).save(auction);
+    }
+
+    @Test
+    void testUpdateAuctionFullSuccess() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+
+        OffsetDateTime newEnd = OffsetDateTime.now(ZoneOffset.UTC).plusDays(20);
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Full Update");
+        req.setStartingPrice(2000000L);
+        req.setReservePrice(3000000L);
+        req.setMinimumIncrement(100000L);
+        req.setEndTime(newEnd);
+
+        Auction result = auctionService.update("auction-101", "seller-001", req);
+
+        assertEquals("Full Update", result.getTitle());
+        assertEquals(2000000L, result.getStartingPrice());
+        assertEquals(3000000L, result.getReservePrice());
+        assertEquals(100000L, result.getMinimumIncrement());
+        assertEquals(newEnd, result.getEndTime());
+        verify(auctionRepository, times(1)).save(auction);
+    }
+
+    @Test
+    void testUpdateAuctionPartialFields() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+        when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setEndTime(OffsetDateTime.now(ZoneOffset.UTC).plusDays(14));
+
+        Auction result = auctionService.update("auction-101", "seller-001", req);
+
+        assertEquals("Vintage Camera", result.getTitle());
+        assertNotNull(result.getEndTime());
+    }
+
+    @Test
+    void testUpdateAuctionWrongSeller() {
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Hacked Title");
+
+        assertThrows(IllegalStateException.class, () ->
+            auctionService.update("auction-101", "wrong-seller", req));
+
+        verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateAuctionNotDraft() {
+        auction.setStatus(AuctionStatus.ACTIVE);
+        when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
+
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Too Late");
+
+        assertThrows(IllegalStateException.class, () ->
+            auctionService.update("auction-101", "seller-001", req));
+
+        verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateAuctionNotFound() {
+        when(auctionRepository.findById("not-exist")).thenReturn(Optional.empty());
+
+        id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest req =
+            new id.ac.ui.cs.advprog.bidmart.auction.dto.UpdateAuctionRequest();
+        req.setTitle("Ghost");
+
+        assertThrows(java.util.NoSuchElementException.class, () ->
+            auctionService.update("not-exist", "seller-001", req));
     }
 }
