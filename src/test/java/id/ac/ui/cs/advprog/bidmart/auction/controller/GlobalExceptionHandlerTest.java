@@ -109,4 +109,34 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error").value("Internal Server Error"))
                 .andExpect(jsonPath("$.message").value("An unexpected error occurred."));
     }
+
+    @Test
+    void handleExhaustedRetry_withIllegalArgumentCause_returns400() throws Exception {
+        IllegalArgumentException cause = new IllegalArgumentException("Client error");
+        org.springframework.retry.ExhaustedRetryException ex = new org.springframework.retry.ExhaustedRetryException("Retry exhausted", cause);
+        
+        when(auctionService.findById("auction-retry"))
+                .thenThrow(ex);
+
+        mockMvc.perform(get("/api/auctions/auction-retry"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Insufficient wallet balance to place this bid."));
+    }
+
+    @Test
+    void handleExhaustedRetry_withOtherCause_returns500() throws Exception {
+        RuntimeException cause = new RuntimeException("Some other error");
+        org.springframework.retry.ExhaustedRetryException ex = new org.springframework.retry.ExhaustedRetryException("Retry exhausted", cause);
+        
+        when(auctionService.findById("auction-retry-500"))
+                .thenThrow(ex);
+
+        mockMvc.perform(get("/api/auctions/auction-retry-500"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.message").value("Wallet service is currently unavailable."));
+    }
 }

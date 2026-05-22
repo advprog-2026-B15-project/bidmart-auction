@@ -121,7 +121,7 @@ public class AuctionController {
                       "Concurrent bids are protected by a Redisson distributed lock."
     )
     @ApiResponse(responseCode = "201", description = "Bid placed successfully")
-    @ApiResponse(responseCode = "400", description = "Amount too low, auction not active, or seller bidding own auction")
+    @ApiResponse(responseCode = "400", description = "Amount too low, auction not active, seller bidding own auction, or insufficient wallet balance")
     @ApiResponse(responseCode = "401", description = "Missing X-User-Id header")
     @ApiResponse(responseCode = "404", description = "Auction not found")
     public ResponseEntity<BidResponse> placeBid(
