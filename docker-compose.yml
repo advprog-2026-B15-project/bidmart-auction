@@ -25,5 +25,25 @@ services:
     depends_on:
       - prometheus
 
+  auction-service:
+    image: ghcr.io/advprog-2026-b15-project/bidmart-auction:latest
+    container_name: bidmart-auction
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JDBC_DATABASE_URL=${JDBC_DATABASE_URL}
+      - JDBC_DATABASE_USERNAME=${JDBC_DATABASE_USERNAME}
+      - JDBC_DATABASE_PASSWORD=${JDBC_DATABASE_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+      - RABBITMQ_SSL_ENABLED=${RABBITMQ_SSL_ENABLED}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - WALLET_SERVICE_URL=${WALLET_SERVICE_URL}
+
 volumes:
   grafana-storage:
