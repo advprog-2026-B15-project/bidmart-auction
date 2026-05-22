@@ -43,7 +43,7 @@ public class WalletRestAdapter implements HoldBalancePort {
     )
     public void holdBalance(String userId, String auctionId, Long amount) {
         String endpoint = walletServiceUrl + holdPath;
-        String idempotencyKey = auctionId + "-" + userId;
+        String idempotencyKey = auctionId + "-" + userId + "-" + amount;
 
         Map<String, Object> requestBody = Map.of(
                 "userId", userId,
@@ -83,7 +83,7 @@ public class WalletRestAdapter implements HoldBalancePort {
     )
     public void releaseBalance(String userId, String auctionId, Long amount) {
         String endpoint = walletServiceUrl + releasePath;
-        String idempotencyKey = auctionId + "-" + userId + "-release";
+        String idempotencyKey = auctionId + "-" + userId + "-" + amount + "-release";
 
         Map<String, Object> requestBody = Map.of(
                 "userId", userId,

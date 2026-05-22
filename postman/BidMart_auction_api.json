@@ -234,7 +234,26 @@
 							{"key": "Content-Type", "value": "application/json"},
 							{"key": "X-User-Id", "value": "{{buyerId}}"}
 						],
-						"body": {"mode": "raw", "raw": "{\n  \"amount\": 1201000\n}"},
+					}
+				},
+				{
+					"name": "Bid Insufficient Balance (400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Should return 400 for insufficient balance\", () => pm.response.to.have.status(400));"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "X-User-Id", "value": "{{buyerId}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\n  \"amount\": 999999999999\n}"},
 						"url": {"raw": "{{baseUrl}}/api/auctions/{{auctionId}}/bids", "host": ["{{baseUrl}}"], "path": ["api", "auctions", "{{auctionId}}", "bids"]}
 					}
 				},

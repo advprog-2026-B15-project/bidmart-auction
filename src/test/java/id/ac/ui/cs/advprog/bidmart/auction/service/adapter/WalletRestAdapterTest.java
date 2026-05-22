@@ -41,7 +41,7 @@ class WalletRestAdapterTest {
                 .andExpect(jsonPath("$.userId").value("user-001"))
                 .andExpect(jsonPath("$.auctId").value("auction-001"))
                 .andExpect(jsonPath("$.amount").value(500000))
-                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001"))
+                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001-500000"))
                 .andRespond(withSuccess());
 
         walletRestAdapter.holdBalance("user-001", "auction-001", 500000L);
@@ -91,7 +91,7 @@ class WalletRestAdapterTest {
                 .andExpect(jsonPath("$.userId").value("user-001"))
                 .andExpect(jsonPath("$.auctId").value("auction-001"))
                 .andExpect(jsonPath("$.amount").value(500000))
-                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001-release"))
+                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001-500000-release"))
                 .andRespond(withSuccess());
 
         walletRestAdapter.releaseBalance("user-001", "auction-001", 500000L);
