@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final String BAD_REQUEST = "Bad Request";
+    private static final String INTERNAL_SERVER_ERROR = "Internal Server Error";
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NoSuchElementException e) {
@@ -48,7 +49,7 @@ public class GlobalExceptionHandler {
         if (msg != null && msg.contains("500")) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse(500, "Internal Server Error",
+                    .body(new ErrorResponse(500, INTERNAL_SERVER_ERROR,
                             "Wallet service is currently unavailable."));
         }
 
@@ -77,7 +78,7 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(500, "Internal Server Error", "Wallet service is currently unavailable."));
+                .body(new ErrorResponse(500, INTERNAL_SERVER_ERROR, "Wallet service is currently unavailable."));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -89,9 +90,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception e) {
-        e.printStackTrace(); // Tambahkan baris ini agar error log muncul di terminal
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(500, "Internal Server Error", "An unexpected error occurred."));
+                .body(new ErrorResponse(500, INTERNAL_SERVER_ERROR, "An unexpected error occurred."));
     }
 }
