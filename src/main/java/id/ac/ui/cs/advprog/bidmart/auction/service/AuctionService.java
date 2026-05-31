@@ -172,6 +172,11 @@ public class AuctionService {
         String previousBidderId = previousHighest.map(Bid::getBidderId).orElse(null);
         Long previousAmount = previousHighest.map(Bid::getAmount).orElse(null);
 
+        // Block current highest bidder from bidding again (would cause double-hold)
+        if (previousBidderId != null && previousBidderId.equals(bidderId)) {
+            throw new IllegalArgumentException("You are already the highest bidder on this auction");
+        }
+
         auction.applyAntiSnipingRule();
         Bid bid = createAndSaveBid(auction, bidderId, amount);
 
