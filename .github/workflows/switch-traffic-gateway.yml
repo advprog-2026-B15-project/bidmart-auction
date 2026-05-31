@@ -1,0 +1,50 @@
+name: Switch Traffic
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "yes" to confirm you have tested the new environment and are ready to switch traffic.'
+        required: true
+        default: 'no'
+
+jobs:
+  switch-traffic:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'yes'
+    steps:
+      - name: Determine Next Environment
+        id: set-target
+        run: |
+          CURRENT_ACTIVE="${{ vars.ACTIVE_ENV }}"
+          
+          if [ -z "$CURRENT_ACTIVE" ]; then
+            echo "Error: Repository Variable ACTIVE_ENV is not set!"
+            exit 1
+          fi
+          
+          if [ "$CURRENT_ACTIVE" == "blue" ]; then
+            echo "TARGET_ENV=green" >> $GITHUB_ENV
+          else
+            echo "TARGET_ENV=blue" >> $GITHUB_ENV
+          fi
+
+      - name: Beri Sinyal ke Gateway (Switch Traffic)
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAT_GITHUB }}
+          repository: advprog-2026-B15-project/bidmart-gateway 
+          event-type: switch-to-${{ env.TARGET_ENV }}
+
+      - name: Update ACTIVE_ENV Variable di GitHub
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB }}
+        run: |
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/variables/ACTIVE_ENV \
+            -f name='ACTIVE_ENV' \
+            -f value='${{ env.TARGET_ENV }}'
+          echo "Successfully updated ACTIVE_ENV to ${{ env.TARGET_ENV }}"

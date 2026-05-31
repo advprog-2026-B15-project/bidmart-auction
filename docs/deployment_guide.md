@@ -8,8 +8,13 @@ Our pipeline has two main parts:
 ### A. Continuous Integration (`ci.yml`)
 This runs automatically every time someone pushes code or opens a Pull Request. It runs `gradle test`, checks the Code Coverage (must be at least 80%), and runs a code quality check using SonarCloud to make sure no bugs or messy code get into the main project.
 
-### B. Continuous Deployment (`cd.yml`)
-This runs automatically, but only when code is pushed or merged into the `main` branch. It builds the application into a `.jar` file, puts it inside a Docker Container, and uploads (pushes) that container to GHCR (`ghcr.io`).
+### B. Continuous Deployment (`deploy-blue-green.yml`)
+This runs automatically on push to `main`. It implements a **Blue-Green Deployment** architecture:
+1. **Smart Deploy**: Automatically reads the `ACTIVE_ENV` variable to determine the active server. It builds the application into a Docker Container, pushes to GHCR (`ghcr.io`), and deploys it to the **idle/inactive server** (Green or Blue).
+2. **Manual Testing Phase**: The deployment halts after pushing to the idle server. This allows the QA team to manually test the new release on the non-production IP without affecting live users.
+
+### C. Traffic Switching (`switch-traffic-gateway.yml`)
+This is a **manually triggered** workflow. Once the idle server passes testing, a developer manually runs this workflow. It sends a `repository_dispatch` signal to the API Gateway to instantly route 100% of production traffic to the new server (**Zero-Downtime**) and automatically updates the `ACTIVE_ENV` variable for the next release.
 
 ## 2. Docker Compose (Local & Production)
 If you want to run the service along with its monitoring tools, use this command:

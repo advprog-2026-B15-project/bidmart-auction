@@ -206,6 +206,7 @@ The project enforces a minimum **80% code coverage** on all non-DTO/config class
 The repository uses GitHub Actions for automated pipelines:
 
 - **CI (on every push)**: `./gradlew test` -> SonarCloud analysis -> Coverage check
-- **CD (on push to `main`)**: Build Docker image -> Push to **GitHub Container Registry (GHCR)** -> Deploy to AWS EC2
-
-See `.github/workflows/` for pipeline definitions.
+- **CD (on push to `main`)**: Implements a **Blue-Green Deployment** architecture:
+  1. **Smart Deploy**: Automatically reads the `ACTIVE_ENV` variable to determine the active server. It builds the Docker image, pushes it to GHCR, and deploys it to the **idle/inactive server**.
+  2. **Manual Testing Phase**: The deployment halts after pushing to the idle server, allowing the team to safely test the new features on the Green/Blue IP without affecting production traffic.
+  3. **Zero-Downtime Switch**: A manual workflow (`Switch Traffic`) triggers a `repository_dispatch` event to the API Gateway. The Gateway dynamically updates its routing in-memory via Actuator, instantly switching 100% of production traffic to the new server with zero downtime.
