@@ -46,6 +46,10 @@ jobs:
           docker build -t ghcr.io/$REPO_LOWER:latest .
           docker push ghcr.io/$REPO_LOWER:latest
 
+      - name: Inject Green IP to Prometheus Config
+        run: |
+          sed -i 's/IP_EC2_GREEN/${{ secrets.GREEN_EC2_HOST }}/g' config/prometheus.yml
+
       - name: Copy docker-compose to Blue EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -62,5 +66,5 @@ jobs:
           username: ${{ secrets.BLUE_EC2_USERNAME }}
           key: ${{ secrets.BLUE_EC2_SSH_KEY }}
           script: |
-            docker compose pull
-            docker compose up -d
+            docker compose --profile monitoring pull
+            docker compose --profile monitoring up -d
