@@ -63,7 +63,7 @@ tasks.jacocoTestReport {
     dependsOn(tasks.test)
     reports {
         xml.required.set(true)
-        csv.required.set(false)
+        csv.required.set(true)
         html.required.set(true)
         html.outputLocation.set(layout.buildDirectory.dir("reports/jacocoHtml"))
     }
@@ -74,7 +74,7 @@ tasks.jacocoTestCoverageVerification {
     violationRules {
         rule {
             limit {
-                minimum = "0.80".toBigDecimal()
+                minimum = "0.90".toBigDecimal()
             }
         }
     }

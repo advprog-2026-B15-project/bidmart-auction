@@ -132,4 +132,63 @@ class WalletRestAdapterTest {
         );
         server.verify();
     }
+
+    @Test
+    void testConvertBalanceSuccess() {
+        server.expect(requestTo("http://localhost:8080/internal/wallet/convert"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.userId").value("user-001"))
+                .andExpect(jsonPath("$.auctId").value("auction-001"))
+                .andExpect(jsonPath("$.amount").value(500000))
+                .andExpect(jsonPath("$.idempotencyKey").value("auction-001-user-001-500000-convert"))
+                .andRespond(withSuccess());
+
+        walletRestAdapter.convertBalance("user-001", "auction-001", 500000L);
+        server.verify();
+    }
+
+    @Test
+    void testConvertBalanceError4xx_noRetry() {
+        server.expect(times(1), requestTo("http://localhost:8080/internal/wallet/convert"))
+                .andRespond(withBadRequest());
+
+        assertThrows(Exception.class, () ->
+            walletRestAdapter.convertBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testConvertBalanceError5xx_retriesAndFails() {
+        server.expect(times(3), requestTo("http://localhost:8080/internal/wallet/convert"))
+                .andRespond(withServerError());
+
+        assertThrows(IllegalStateException.class, () ->
+            walletRestAdapter.convertBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+
+    @Test
+    void testConvertBalanceError5xx_retriesAndSucceeds() {
+        server.expect(requestTo("http://localhost:8080/internal/wallet/convert"))
+                .andRespond(withServerError());
+        server.expect(requestTo("http://localhost:8080/internal/wallet/convert"))
+                .andRespond(withSuccess());
+
+        assertDoesNotThrow(() ->
+            walletRestAdapter.convertBalance("user-001", "auction-001", 500000L)
+        );
+        server.verify();
+    }
+    
+    @Test
+    void testSimulateLatencyForProfiling() {
+        WalletRestAdapter adapter = new WalletRestAdapter(org.springframework.web.client.RestClient.builder(), "", "", "", "");
+        assertDoesNotThrow(() -> adapter.simulateLatencyForProfiling());
+        
+        Thread.currentThread().interrupt();
+        assertThrows(IllegalStateException.class, () -> adapter.simulateLatencyForProfiling());
+    }
 }

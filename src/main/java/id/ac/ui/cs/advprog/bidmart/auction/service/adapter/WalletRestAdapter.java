@@ -20,6 +20,7 @@ public class WalletRestAdapter implements HoldBalancePort {
     private final String walletServiceUrl;
     private final String holdPath;
     private final String releasePath;
+    private final String convertPath;
 
     static final int MAX_RETRIES = 3;
     static final long RETRY_DELAY_MS = 1000;
@@ -28,11 +29,13 @@ public class WalletRestAdapter implements HoldBalancePort {
             RestClient.Builder restClientBuilder,
             @Value("${bidmart.wallet-service.url}") String walletServiceUrl,
             @Value("${bidmart.wallet-service.hold-path:/internal/wallet/hold}") String holdPath,
-            @Value("${bidmart.wallet-service.release-path:/internal/wallet/release}") String releasePath) {
+            @Value("${bidmart.wallet-service.release-path:/internal/wallet/release}") String releasePath,
+            @Value("${bidmart.wallet-service.convert-path:/internal/wallet/convert}") String convertPath) {
         this.restClient = restClientBuilder.build();
         this.walletServiceUrl = walletServiceUrl;
         this.holdPath = holdPath;
         this.releasePath = releasePath;
+        this.convertPath = convertPath;
     }
 
     @Override
@@ -121,7 +124,47 @@ public class WalletRestAdapter implements HoldBalancePort {
 
     @Recover
     public void releaseBalanceFallback(IllegalStateException e, String userId, String auctionId, Long amount) {
-        log.error("Failed to release balance for user={} auction={} after retries: {}", 
+        log.error("Failed to release balance for user={} auction={} after retries: {}",
+                userId, auctionId, e.getMessage());
+        throw e;
+    }
+
+    @Override
+    @Retryable(
+        retryFor = { IllegalStateException.class },
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2.0)
+    )
+    public void convertBalance(String userId, String auctionId, Long amount) {
+        String endpoint = walletServiceUrl + convertPath;
+        String idempotencyKey = auctionId + "-" + userId + "-" + amount + "-convert";
+
+        Map<String, Object> requestBody = Map.of(
+                "userId", userId,
+                "auctId", auctionId,
+                "amount", amount,
+                "idempotencyKey", idempotencyKey
+        );
+
+        restClient.post()
+                .uri(endpoint)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody)
+                .retrieve()
+                .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
+                    (request, response) -> {
+                    throw new IllegalArgumentException("Client error (" + convertPath + "): " + response.getStatusCode());
+                })
+                .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError,
+                    (request, response) -> {
+                    throw new IllegalStateException("Server error (" + convertPath + "): " + response.getStatusCode());
+                })
+                .toBodilessEntity();
+    }
+
+    @Recover
+    public void convertBalanceFallback(IllegalStateException e, String userId, String auctionId, Long amount) {
+        log.error("Failed to convert balance for user={} auction={} after retries: {}",
                 userId, auctionId, e.getMessage());
         throw e;
     }
