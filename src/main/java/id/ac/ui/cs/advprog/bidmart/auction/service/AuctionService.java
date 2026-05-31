@@ -14,6 +14,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.dto.BidResponse;
 import id.ac.ui.cs.advprog.bidmart.auction.service.strategy.BidValidationStrategy;
 import id.ac.ui.cs.advprog.bidmart.auction.service.lock.DistributedLockTemplate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,6 +33,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuctionService {
@@ -165,19 +167,32 @@ public class AuctionService {
         Auction auction = getAuctionOrThrow(auctionId);
         validateBid(auction, bidderId, amount);
 
-        String previousBidderId = getPreviousBidderId(auctionId);
+        // Capture previous highest bid before saving the new one
+        java.util.Optional<Bid> previousHighest = bidRepository.findHighestBid(auctionId);
+        String previousBidderId = previousHighest.map(Bid::getBidderId).orElse(null);
+        Long previousAmount = previousHighest.map(Bid::getAmount).orElse(null);
+
+        // Block current highest bidder from bidding again (would cause double-hold)
+        if (previousBidderId != null && previousBidderId.equals(bidderId)) {
+            throw new IllegalArgumentException("You are already the highest bidder on this auction");
+        }
 
         auction.applyAntiSnipingRule();
         Bid bid = createAndSaveBid(auction, bidderId, amount);
+
+        // Release the outbid user's held balance (different bidder only)
+        if (previousBidderId != null && !previousBidderId.equals(bidderId) && previousAmount != null) {
+            try {
+                holdBalancePort.releaseBalance(previousBidderId, auctionId, previousAmount);
+            } catch (Exception e) {
+                log.warn("Failed to release balance for outbid user={} auction={}: {}",
+                        previousBidderId, auctionId, e.getMessage());
+            }
+        }
+
         publishBidEvents(auction, bid, previousBidderId);
 
         return bid;
-    }
-
-    private String getPreviousBidderId(String auctionId) {
-        return bidRepository.findHighestBid(auctionId)
-                .map(Bid::getBidderId)
-                .orElse(null);
     }
 
     private Bid createAndSaveBid(Auction auction, String bidderId, Long amount) {
