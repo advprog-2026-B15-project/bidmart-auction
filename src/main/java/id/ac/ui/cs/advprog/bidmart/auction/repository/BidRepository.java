@@ -22,4 +22,7 @@ public interface BidRepository extends JpaRepository<Bid, String> {
 
     @Query("SELECT DISTINCT b.bidderId FROM Bid b WHERE b.auction.id = :auctionId AND b.bidderId != :winnerId")
     List<String> findDistinctLoserBidderIds(@Param("auctionId") String auctionId, @Param("winnerId") String winnerId);
+
+    @Query("SELECT b FROM Bid b WHERE b.auction.id = :auctionId AND b.bidderId = :bidderId ORDER BY b.amount DESC LIMIT 1")
+    Optional<Bid> findHighestBidByBidder(@Param("auctionId") String auctionId, @Param("bidderId") String bidderId);
 }
