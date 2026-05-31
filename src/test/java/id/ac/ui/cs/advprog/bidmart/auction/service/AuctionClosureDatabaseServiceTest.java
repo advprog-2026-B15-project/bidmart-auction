@@ -44,6 +44,9 @@ class AuctionClosureDatabaseServiceTest {
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Mock
+    private id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort holdBalancePort;
+
     @InjectMocks
     private AuctionClosureDatabaseService service;
 
@@ -258,5 +261,47 @@ class AuctionClosureDatabaseServiceTest {
         service.markAsClosed("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
+    }
+    @Test
+    void closeAuction_wonScenario_convertBalanceThrowsException_stillCloses() {
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+        when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
+        when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1"))
+                .thenReturn(Collections.singletonList("buyer-2"));
+        
+        Bid loserBid = new Bid();
+        loserBid.setId("bid-2");
+        loserBid.setAuction(auction);
+        loserBid.setBidderId("buyer-2");
+        loserBid.setAmount(100L);
+        when(bidRepository.findHighestBidByBidder("auc-1", "buyer-2")).thenReturn(Optional.of(loserBid));
+        
+        doThrow(new RuntimeException("Conversion failed")).when(holdBalancePort).convertBalance("buyer-1", "auc-1", 150L);
+        doThrow(new RuntimeException("Release failed")).when(holdBalancePort).releaseBalance("buyer-2", "auc-1", 100L);
+
+        service.evaluateClosedAuction("auc-1", now);
+
+        assertEquals(AuctionStatus.WON, auction.getStatus());
+        verify(auctionRepository).save(auction);
+        verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent.class));
+    }
+
+    @Test
+    void closeAuction_unsoldScenario_releaseBalanceThrowsException_stillCloses() {
+        auction.setReservePrice(500L);
+
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+        when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
+        when(bidRepository.findDistinctBidderIdsByAuctionId("auc-1"))
+                .thenReturn(Collections.singletonList("buyer-1"));
+        when(bidRepository.findHighestBidByBidder("auc-1", "buyer-1")).thenReturn(Optional.of(highestBid));
+
+        doThrow(new RuntimeException("Release failed")).when(holdBalancePort).releaseBalance("buyer-1", "auc-1", 150L);
+
+        service.evaluateClosedAuction("auc-1", now);
+
+        assertEquals(AuctionStatus.UNSOLD, auction.getStatus());
+        verify(auctionRepository).save(auction);
+        verify(applicationEventPublisher).publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishUnsoldRabbitEvent.class));
     }
 }
