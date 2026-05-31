@@ -4,6 +4,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: bidmart-prometheus
+    profiles: ["monitoring"]
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -14,6 +15,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: bidmart-grafana
+    profiles: ["monitoring"]
     ports:
       - "3000:3000"
     environment:
