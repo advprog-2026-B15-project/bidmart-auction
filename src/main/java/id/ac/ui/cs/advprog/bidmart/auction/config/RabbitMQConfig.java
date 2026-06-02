@@ -11,8 +11,12 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Configuration
@@ -75,7 +79,16 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+        DefaultClassMapper classMapper = new DefaultClassMapper();
+        classMapper.setTrustedPackages("*");
+        
+        Map<String, Class<?>> idClassMapping = new HashMap<>();
+        idClassMapping.put("id.ac.ui.cs.advprog.bidmartcatalog.event.ListingPublishedEvent", id.ac.ui.cs.advprog.bidmart.auction.dto.ListingPublishedEvent.class);
+        classMapper.setIdClassMapping(idClassMapping);
+        
+        converter.setClassMapper(classMapper);
+        return converter;
     }
 
     @Bean
