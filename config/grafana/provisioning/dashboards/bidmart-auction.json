@@ -5,14 +5,14 @@
   "tags": ["bidmart", "auction"],
   "timezone": "browser",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "panels": [
     {
       "id": 1,
       "title": "Total Bids Placed",
       "type": "stat",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
@@ -22,8 +22,7 @@
       "targets": [
         {
           "expr": "auction_bids_placed_total{application=\"bidmart-auction\"}",
-          "legendFormat": "Total Bids",
-          "refId": "A"
+          "legendFormat": "Total Bids"
         }
       ],
       "fieldConfig": {
@@ -41,18 +40,17 @@
       "id": 2,
       "title": "Active Auctions",
       "type": "stat",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "orientation": "auto"
       },
       "targets": [
         {
           "expr": "auction_active_count{application=\"bidmart-auction\"}",
-          "legendFormat": "Active Auctions",
-          "refId": "A"
+          "legendFormat": "Active Auctions"
         }
       ],
       "fieldConfig": {
@@ -67,18 +65,47 @@
       }
     },
     {
+      "id": 6,
+      "title": "API Apdex Score (T=0.5s)",
+      "type": "gauge",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(http_server_requests_seconds_bucket{application=\"bidmart-auction\", le=\"0.5\"}[5m])) + sum(rate(http_server_requests_seconds_bucket{application=\"bidmart-auction\", le=\"2.0\"}[5m]))) / 2 / sum(rate(http_server_requests_seconds_count{application=\"bidmart-auction\"}[5m]))",
+          "legendFormat": "Apdex Score"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": 3,
       "title": "Bid Rate (per minute)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 8 },
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" }
       },
       "targets": [
         {
           "expr": "rate(auction_bids_placed_total{application=\"bidmart-auction\"}[1m]) * 60",
-          "legendFormat": "Bids / Minute",
-          "refId": "A"
+          "legendFormat": "Bids / Minute"
         }
       ]
     },
@@ -86,25 +113,22 @@
       "id": 4,
       "title": "Bid Latency (p50, p95, p99)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 8 },
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" }
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m]))",
-          "legendFormat": "p50",
-          "refId": "A"
+          "expr": "histogram_quantile(0.50, sum(rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m])) by (le))",
+          "legendFormat": "p50"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m]))",
-          "legendFormat": "p95",
-          "refId": "B"
+          "expr": "histogram_quantile(0.95, sum(rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m])) by (le))",
+          "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m]))",
-          "legendFormat": "p99",
-          "refId": "C"
+          "expr": "histogram_quantile(0.99, sum(rate(auction_bid_latency_seconds_bucket{application=\"bidmart-auction\"}[1m])) by (le))",
+          "legendFormat": "p99"
         }
       ],
       "fieldConfig": {
@@ -117,17 +141,64 @@
       "id": 5,
       "title": "HTTP Request Rate (all endpoints)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" }
       },
       "targets": [
         {
-          "expr": "rate(http_server_requests_seconds_count{application=\"bidmart-auction\"}[1m])",
-          "legendFormat": "{{method}} {{uri}} {{status}}",
-          "refId": "A"
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"bidmart-auction\"}[1m])) by (uri, status)",
+          "legendFormat": "{{uri}} {{status}}"
         }
       ]
+    },
+    {
+      "id": 7,
+      "title": "JVM Heap Memory Usage",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 20, "w": 6, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{application=\"bidmart-auction\", area=\"heap\"}",
+          "legendFormat": "Used Heap"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{application=\"bidmart-auction\", area=\"heap\"}",
+          "legendFormat": "Max Heap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "x": 6, "y": 20, "w": 6, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "expr": "system_cpu_usage{application=\"bidmart-auction\"}",
+          "legendFormat": "System CPU"
+        },
+        {
+          "expr": "process_cpu_usage{application=\"bidmart-auction\"}",
+          "legendFormat": "Process CPU"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      }
     }
   ]
 }
