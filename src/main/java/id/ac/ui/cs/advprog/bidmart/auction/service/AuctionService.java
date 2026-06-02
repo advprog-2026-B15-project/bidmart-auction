@@ -58,6 +58,7 @@ public class AuctionService {
                 .register(meterRegistry);
         bidLatencyTimer = Timer.builder("auction.bid.latency")
                 .description("Time taken to place a bid end-to-end")
+                .publishPercentileHistogram()
                 .register(meterRegistry);
         io.micrometer.core.instrument.Gauge.builder("auction.active.count", auctionRepository,
                 repo -> repo.countByStatusIn(List.of(AuctionStatus.ACTIVE, AuctionStatus.EXTENDED)))
