@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.bidmart.auction.service;
 
 import id.ac.ui.cs.advprog.bidmart.auction.dto.CreateAuctionRequest;
+import id.ac.ui.cs.advprog.bidmart.auction.dto.ListingPublishedEvent;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Auction;
 import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
@@ -124,6 +125,56 @@ class AuctionServiceTest {
         });
 
         verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void testCreateFromListingPublishedEventSuccess() {
+        ListingPublishedEvent.Payload payload = ListingPublishedEvent.Payload.builder()
+                .listingId("listing-published-001")
+                .sellerId("seller-123")
+                .title("New MacBook Pro")
+                .startingPrice(15000000.0)
+                .reservePrice(16000000.0)
+                .endTime("2026-06-10T10:00:00Z")
+                .build();
+        ListingPublishedEvent event = ListingPublishedEvent.builder()
+                .eventId("event-123")
+                .payload(payload)
+                .build();
+
+        when(auctionRepository.findByListingId("listing-published-001")).thenReturn(java.util.Collections.emptyList());
+        when(auctionRepository.save(any(Auction.class))).thenAnswer(i -> i.getArgument(0));
+
+        Auction result = auctionService.createFromListingPublishedEvent(event);
+
+        assertNotNull(result);
+        assertEquals("New MacBook Pro", result.getTitle());
+        assertEquals(15000000L, result.getStartingPrice());
+        assertEquals(16000000L, result.getReservePrice());
+        assertEquals(1500000L, result.getMinimumIncrement()); // 10% of 15m
+        assertEquals(OffsetDateTime.parse("2026-06-10T10:00:00Z"), result.getEndTime());
+        
+        verify(auctionRepository, times(1)).save(any(Auction.class));
+    }
+
+    @Test
+    void testCreateFromListingPublishedEventIdempotency() {
+        ListingPublishedEvent.Payload payload = ListingPublishedEvent.Payload.builder()
+                .listingId("listing-001")
+                .build();
+        ListingPublishedEvent event = ListingPublishedEvent.builder()
+                .eventId("event-123")
+                .payload(payload)
+                .build();
+
+        when(auctionRepository.findByListingId("listing-001")).thenReturn(Arrays.asList(auction));
+
+        Auction result = auctionService.createFromListingPublishedEvent(event);
+
+        assertNotNull(result);
+        assertEquals(auction.getId(), result.getId());
+        
+        verify(auctionRepository, never()).save(any(Auction.class));
     }
 
     @Test
