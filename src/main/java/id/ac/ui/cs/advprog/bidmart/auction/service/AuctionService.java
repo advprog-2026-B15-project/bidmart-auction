@@ -97,6 +97,35 @@ public class AuctionService {
         return auctionRepository.save(auction);
     }
 
+    public Auction createFromListingPublishedEvent(id.ac.ui.cs.advprog.bidmart.auction.dto.ListingPublishedEvent event) {
+        id.ac.ui.cs.advprog.bidmart.auction.dto.ListingPublishedEvent.Payload payload = event.getPayload();
+        
+        List<Auction> existing = auctionRepository.findByListingId(payload.getListingId());
+        if (!existing.isEmpty()) {
+            log.info("Auction for listingId {} already exists, skipping event.", payload.getListingId());
+            return existing.get(0);
+        }
+
+        Auction auction = new Auction();
+        auction.setListingId(payload.getListingId());
+        auction.setSellerId(payload.getSellerId());
+        auction.setTitle(payload.getTitle());
+        
+        long startingPrice = payload.getStartingPrice().longValue();
+        auction.setStartingPrice(startingPrice);
+        
+        if (payload.getReservePrice() != null) {
+            auction.setReservePrice(payload.getReservePrice().longValue());
+        }
+        
+        long minIncrement = Math.max(1000L, startingPrice / 10);
+        auction.setMinimumIncrement(minIncrement);
+        
+        auction.setEndTime(OffsetDateTime.parse(payload.getEndTime()));
+        
+        return auctionRepository.save(auction);
+    }
+
     @CacheEvict(value = "auction", key = "#auctionId")
     public Auction activate(String auctionId, String sellerId) {
         Auction auction = getAuctionOrThrow(auctionId);
