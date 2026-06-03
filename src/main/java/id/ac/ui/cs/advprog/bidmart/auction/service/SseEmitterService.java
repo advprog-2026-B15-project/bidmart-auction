@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.bidmart.auction.service;
 
 
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
@@ -44,6 +45,19 @@ public class SseEmitterService {
                 }
             }
         }
+    }
+
+    @Scheduled(fixedRateString = "${bidmart.auction.sse.heartbeat-ms:25000}")
+    public void sendHeartbeat() {
+        emittersMap.forEach((auctionId, emitters) -> {
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event().name("HEARTBEAT").data("ping"));
+                } catch (IOException e) {
+                    removeEmitter(auctionId, emitter);
+                }
+            }
+        });
     }
 
     private void removeEmitter(String auctionId, SseEmitter emitter) {
