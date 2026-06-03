@@ -27,10 +27,6 @@ public class RabbitMQConfig {
     public static final String ROUTING_KEY_WINNER_DETERMINED = "auction.event.winner-determined";
     public static final String ROUTING_KEY_AUCTION_CLOSED = "auction.event.auction-closed";
     
-    public static final String LISTING_PUBLISHED_EXCHANGE = "auction.events";
-    public static final String LISTING_PUBLISHED_QUEUE = "bidmart.auction.listing-published.queue";
-    public static final String ROUTING_KEY_LISTING_PUBLISHED = "auction.event.listing-published";
-
     public static final String DLX_NAME = "bidmart.auction.dlx";
     public static final String DLQ_NAME = "bidmart.auction.dlq";
     public static final String DLQ_ROUTING_KEY = "dlq";
@@ -38,26 +34,6 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange auctionExchange() {
         return new TopicExchange(EXCHANGE_NAME);
-    }
-
-    @Bean
-    public TopicExchange catalogEventsExchange() {
-        return new TopicExchange(LISTING_PUBLISHED_EXCHANGE);
-    }
-
-    @Bean
-    public Queue listingPublishedQueue() {
-        return QueueBuilder.durable(LISTING_PUBLISHED_QUEUE)
-                .withArgument("x-dead-letter-exchange", DLX_NAME)
-                .withArgument("x-dead-letter-routing-key", DLQ_ROUTING_KEY)
-                .build();
-    }
-
-    @Bean
-    public Binding listingPublishedBinding() {
-        return BindingBuilder.bind(listingPublishedQueue())
-                .to(catalogEventsExchange())
-                .with(ROUTING_KEY_LISTING_PUBLISHED);
     }
 
     @Bean
@@ -82,10 +58,6 @@ public class RabbitMQConfig {
         Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
         DefaultClassMapper classMapper = new DefaultClassMapper();
         classMapper.setTrustedPackages("*");
-        
-        Map<String, Class<?>> idClassMapping = new HashMap<>();
-        idClassMapping.put("id.ac.ui.cs.advprog.bidmartcatalog.event.ListingPublishedEvent", id.ac.ui.cs.advprog.bidmart.auction.dto.ListingPublishedEvent.class);
-        classMapper.setIdClassMapping(idClassMapping);
         
         converter.setClassMapper(classMapper);
         return converter;
