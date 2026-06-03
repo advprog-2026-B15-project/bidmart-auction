@@ -88,6 +88,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(400, BAD_REQUEST, "Required request body is missing or unreadable."));
     }
 
+    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestTimeoutException.class)
+    public ResponseEntity<Void> handleAsyncRequestTimeoutException(org.springframework.web.context.request.async.AsyncRequestTimeoutException e) {
+        // Ignore this exception, it happens normally when SSE clients disconnect or timeout.
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception e) {
         return ResponseEntity
