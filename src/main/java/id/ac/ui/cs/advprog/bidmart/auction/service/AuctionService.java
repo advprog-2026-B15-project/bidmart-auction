@@ -75,6 +75,16 @@ public class AuctionService {
         return getAuctionOrThrow(id);
     }
 
+    public Auction findActiveByListingId(String listingId) {
+        return auctionRepository.findByListingId(listingId)
+            .stream()
+            .filter(a -> a.getStatus() == AuctionStatus.ACTIVE
+                      || a.getStatus() == AuctionStatus.EXTENDED)
+            .findFirst()
+            .orElseThrow(() -> new NoSuchElementException(
+                "No active auction found for listing: " + listingId));
+    }
+
     private Auction getAuctionOrThrow(String id) {
         return auctionRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Auction not found"));

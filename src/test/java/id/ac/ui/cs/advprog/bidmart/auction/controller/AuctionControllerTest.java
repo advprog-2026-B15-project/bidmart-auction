@@ -125,6 +125,27 @@ class AuctionControllerTest {
     }
 
     @Test
+    void testFindByListingIdSuccess() throws Exception {
+        when(auctionService.findActiveByListingId("listing-001")).thenReturn(auction);
+
+        mockMvc.perform(get("/api/auctions/by-listing/listing-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("auction-101"))
+                .andExpect(jsonPath("$.title").value("Vintage Camera"));
+    }
+
+    @Test
+    void testFindByListingIdNotFound() throws Exception {
+        when(auctionService.findActiveByListingId("invalid-listing"))
+                .thenThrow(new NoSuchElementException("No active auction found for listing: invalid-listing"));
+
+        mockMvc.perform(get("/api/auctions/by-listing/invalid-listing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("No active auction found for listing: invalid-listing"));
+    }
+
+    @Test
     void testCreateAuctionSuccess() throws Exception {
         when(auctionService.create(any(CreateAuctionRequest.class), eq("seller-001")))
                 .thenReturn(auction);

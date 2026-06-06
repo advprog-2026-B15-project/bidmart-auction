@@ -65,6 +65,21 @@ public class AuctionController {
         return ResponseEntity.ok(AuctionResponse.from(auctionService.findById(id)));
     }
 
+    @GetMapping("/by-listing/{listingId}")
+    @Operation(
+        summary = "Get active auction by listing ID",
+        description = "Looks up the most recent ACTIVE or EXTENDED auction for the given catalog listing ID."
+    )
+    @ApiResponse(responseCode = "200", description = "Auction found")
+    @ApiResponse(responseCode = "404", description = "No active auction found for this listing")
+    public ResponseEntity<AuctionResponse> findByListingId(
+            @Parameter(description = "Catalog Listing ID (UUID)", required = true)
+            @PathVariable String listingId) {
+        return ResponseEntity.ok(
+            AuctionResponse.from(auctionService.findActiveByListingId(listingId))
+        );
+    }
+
     @PostMapping
     @Operation(
         summary = "Create a new auction",
