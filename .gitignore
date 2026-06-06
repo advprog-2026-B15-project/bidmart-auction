@@ -39,3 +39,5 @@ out/
 
 ### Environment variables ###
 .env
+
+traffic_generator.ps1

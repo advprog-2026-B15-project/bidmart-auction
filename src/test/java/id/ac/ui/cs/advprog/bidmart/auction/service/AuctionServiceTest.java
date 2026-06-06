@@ -174,6 +174,46 @@ class AuctionServiceTest {
     }
 
     @Test
+    void testFindActiveByListingIdSuccess() {
+        auction.setStatus(AuctionStatus.ACTIVE);
+        when(auctionRepository.findByListingId("listing-001")).thenReturn(Arrays.asList(auction));
+
+        Auction result = auctionService.findActiveByListingId("listing-001");
+
+        assertNotNull(result);
+        assertEquals("auction-101", result.getId());
+    }
+
+    @Test
+    void testFindActiveByListingIdExtendedSuccess() {
+        auction.setStatus(AuctionStatus.EXTENDED);
+        when(auctionRepository.findByListingId("listing-001")).thenReturn(Arrays.asList(auction));
+
+        Auction result = auctionService.findActiveByListingId("listing-001");
+
+        assertNotNull(result);
+        assertEquals("auction-101", result.getId());
+    }
+
+    @Test
+    void testFindActiveByListingIdNotFound() {
+        when(auctionRepository.findByListingId("listing-001")).thenReturn(Arrays.asList(auction)); // Status is DRAFT
+
+        assertThrows(java.util.NoSuchElementException.class, () -> {
+            auctionService.findActiveByListingId("listing-001");
+        });
+    }
+
+    @Test
+    void testFindActiveByListingIdEmpty() {
+        when(auctionRepository.findByListingId("listing-001")).thenReturn(Arrays.asList());
+
+        assertThrows(java.util.NoSuchElementException.class, () -> {
+            auctionService.findActiveByListingId("listing-001");
+        });
+    }
+
+    @Test
     void testActivateAuctionSuccess() {
         when(auctionRepository.findById("auction-101")).thenReturn(Optional.of(auction));
         when(auctionRepository.save(any(Auction.class))).thenReturn(auction);
