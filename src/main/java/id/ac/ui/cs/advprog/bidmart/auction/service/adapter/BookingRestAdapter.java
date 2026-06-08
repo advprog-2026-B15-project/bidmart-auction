@@ -23,9 +23,11 @@ public class BookingRestAdapter implements BookingCreationPort {
     public BookingRestAdapter(
             RestClient.Builder restClientBuilder,
             @Value("${bidmart.booking-service.url}") String bookingServiceUrl,
-            @Value("${bidmart.booking-service.winner-determined-path:/internal/bookings/winner-determined}")
+            @Value("${bidmart.booking-service.winner-determined-path:" +
+                    "/internal/bookings/winner-determined}")
             String winnerDeterminedPath,
-            @Value("${bidmart.booking-service.pay-by-auction-path:/internal/bookings/pay-by-auction}")
+            @Value("${bidmart.booking-service.pay-by-auction-path:" +
+                    "/internal/bookings/pay-by-auction}")
             String payByAuctionPath
     ) {
         this.restClient = restClientBuilder.build();
@@ -50,18 +52,23 @@ public class BookingRestAdapter implements BookingCreationPort {
                 .retrieve()
                 .onStatus(status -> status.value() == 409, (request, response) -> {
                     log.info(
-                            "Booking already exists for winner event {}. Treating as idempotent success.",
+                            "Booking already exists for winner event {}. " +
+                            "Treating as idempotent success.",
                             event.getEventId()
                     );
                 })
-                .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, (request, response) -> {
+                .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, 
+                        (request, response) -> {
                     throw new IllegalArgumentException(
-                            "Client error (" + winnerDeterminedPath + "): " + response.getStatusCode()
+                            "Client error (" + winnerDeterminedPath + "): " + 
+                            response.getStatusCode()
                     );
                 })
-                .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError, (request, response) -> {
+                .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError, 
+                        (request, response) -> {
                     throw new IllegalStateException(
-                            "Server error (" + winnerDeterminedPath + "): " + response.getStatusCode()
+                            "Server error (" + winnerDeterminedPath + "): " + 
+                            response.getStatusCode()
                     );
                 })
                 .toBodilessEntity();
@@ -74,16 +81,21 @@ public class BookingRestAdapter implements BookingCreationPort {
             restClient.patch()
                     .uri(endpoint)
                     .retrieve()
-                    .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, (request, response) -> {
-                        log.warn("markBookingPaid 4xx for auction={}: {}", auctionId, response.getStatusCode());
+                    .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, 
+                            (request, response) -> {
+                        log.warn("markBookingPaid 4xx for auction={}: {}", 
+                                auctionId, response.getStatusCode());
                     })
-                    .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError, (request, response) -> {
-                        throw new IllegalStateException("Server error marking booking paid: " + response.getStatusCode());
+                    .onStatus(org.springframework.http.HttpStatusCode::is5xxServerError, 
+                            (request, response) -> {
+                        throw new IllegalStateException("Server error marking booking paid: " + 
+                                response.getStatusCode());
                     })
                     .toBodilessEntity();
             log.info("Marked booking as PAID via REST for auction={}", auctionId);
         } catch (Exception e) {
-            log.error("Failed to mark booking as PAID for auction={}: {}", auctionId, e.getMessage());
+            log.error("Failed to mark booking as PAID for auction={}: {}", 
+                    auctionId, e.getMessage());
         }
     }
 

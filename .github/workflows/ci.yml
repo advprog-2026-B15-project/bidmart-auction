@@ -19,8 +19,8 @@ jobs:
           distribution: 'temurin'
       - name: Make gradlew executable
         run: chmod +x gradlew
-      - name: Run Unit Tests
-        run: ./gradlew test
+      - name: Run Unit Tests and Verify Coverage
+        run: ./gradlew test jacocoTestCoverageVerification
 
   checkstyle:
     name: Checkstyle

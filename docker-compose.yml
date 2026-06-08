@@ -4,6 +4,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: bidmart-prometheus
+    restart: unless-stopped
     profiles: ["monitoring"]
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -15,6 +16,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: bidmart-grafana
+    restart: unless-stopped
     profiles: ["monitoring"]
     ports:
       - "3000:3000"
@@ -30,6 +32,7 @@ services:
   auction-service:
     image: ghcr.io/advprog-2026-b15-project/bidmart-auction:latest
     container_name: bidmart-auction
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
