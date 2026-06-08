@@ -1,6 +1,7 @@
 name: Continuous Deployment (Blue-Green)
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["Continuous Integration"]
     types:
@@ -11,7 +12,7 @@ on:
 jobs:
   deploy-blue-green:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Determine Target Environment
         id: set-target
