@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.AuctionStatus;
 import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.BookingCreationPort;
 import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class AuctionClosureDatabaseServiceTest {
 
     @Mock
     private id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort holdBalancePort;
+
+    @Mock
+    private BookingCreationPort bookingCreationPort;
 
     @InjectMocks
     private AuctionClosureDatabaseService service;
@@ -90,6 +94,7 @@ class AuctionClosureDatabaseServiceTest {
 
         assertEquals(AuctionStatus.WON, auction.getStatus());
         verify(auctionRepository).save(auction);
+        verify(bookingCreationPort).createBookingFromWinner(any(WinnerDeterminedEvent.class));
         verify(applicationEventPublisher).publishEvent(winnerDeterminedCaptor.capture());
         verifyNoMoreInteractions(applicationEventPublisher);
 
@@ -261,6 +266,22 @@ class AuctionClosureDatabaseServiceTest {
         service.markAsClosed("auc-1", now);
 
         verify(auctionRepository, never()).save(any());
+    }
+
+    @Test
+    void closeAuction_won_createsBookingBeforePublishingEvent() {
+        when(auctionRepository.findById("auc-1")).thenReturn(Optional.of(auction));
+        when(bidRepository.findHighestBid("auc-1")).thenReturn(Optional.of(highestBid));
+        when(bidRepository.findDistinctLoserBidderIds("auc-1", "buyer-1")).thenReturn(Collections.emptyList());
+
+        var inOrder = inOrder(auctionRepository, bookingCreationPort, applicationEventPublisher);
+
+        service.evaluateClosedAuction("auc-1", now);
+
+        inOrder.verify(auctionRepository).save(auction);
+        inOrder.verify(bookingCreationPort).createBookingFromWinner(any(WinnerDeterminedEvent.class));
+        inOrder.verify(applicationEventPublisher)
+                .publishEvent(any(id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent.class));
     }
     @Test
     void closeAuction_wonScenario_convertBalanceThrowsException_stillCloses() {
