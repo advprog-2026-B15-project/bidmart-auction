@@ -8,6 +8,7 @@ import id.ac.ui.cs.advprog.bidmart.auction.model.Bid;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.AuctionRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.repository.BidRepository;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.AuctionEventPort;
+import id.ac.ui.cs.advprog.bidmart.auction.service.port.BookingCreationPort;
 import id.ac.ui.cs.advprog.bidmart.auction.service.port.HoldBalancePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class AuctionClosureDatabaseService {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final HoldBalancePort holdBalancePort;
+    private final BookingCreationPort bookingCreationPort;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -79,26 +81,6 @@ public class AuctionClosureDatabaseService {
         List<String> loserUserIds = bidRepository.findDistinctLoserBidderIds(
                 auction.getId(), winningBid.getBidderId());
 
-        // Convert winner's held balance to payment
-        try {
-            holdBalancePort.convertBalance(winningBid.getBidderId(), auction.getId(), winningBid.getAmount());
-            log.info("Converted balance for winner={} auction={} amount={}", winningBid.getBidderId(), auction.getId(), winningBid.getAmount());
-        } catch (Exception e) {
-            log.error("Failed to convert balance for winner={} auction={}: {}", winningBid.getBidderId(), auction.getId(), e.getMessage());
-        }
-
-        // Release each loser's held balance
-        for (String loserId : loserUserIds) {
-            bidRepository.findHighestBidByBidder(auction.getId(), loserId).ifPresent(loserBid -> {
-                try {
-                    holdBalancePort.releaseBalance(loserId, auction.getId(), loserBid.getAmount());
-                    log.info("Released balance for loser={} auction={} amount={}", loserId, auction.getId(), loserBid.getAmount());
-                } catch (Exception e) {
-                    log.error("Failed to release balance for loser={} auction={}: {}", loserId, auction.getId(), e.getMessage());
-                }
-            });
-        }
-
         WinnerDeterminedEvent event = WinnerDeterminedEvent.builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType("WinnerDetermined")
@@ -117,6 +99,34 @@ public class AuctionClosureDatabaseService {
                         .loserUserIds(loserUserIds)
                         .build())
                 .build();
+
+        bookingCreationPort.createBookingFromWinner(event);
+        log.info(
+                "Created booking synchronously for auction={} winner={}",
+                auction.getId(),
+                winningBid.getBidderId()
+        );
+
+        // Convert winner's held balance to payment, then immediately mark booking as PAID via REST
+        try {
+            holdBalancePort.convertBalance(winningBid.getBidderId(), auction.getId(), winningBid.getAmount());
+            log.info("Converted balance for winner={} auction={} amount={}", winningBid.getBidderId(), auction.getId(), winningBid.getAmount());
+            bookingCreationPort.markBookingPaid(auction.getId());
+        } catch (Exception e) {
+            log.error("Failed to convert balance for winner={} auction={}: {}", winningBid.getBidderId(), auction.getId(), e.getMessage());
+        }
+
+        // Release each loser's held balance
+        for (String loserId : loserUserIds) {
+            bidRepository.findHighestBidByBidder(auction.getId(), loserId).ifPresent(loserBid -> {
+                try {
+                    holdBalancePort.releaseBalance(loserId, auction.getId(), loserBid.getAmount());
+                    log.info("Released balance for loser={} auction={} amount={}", loserId, auction.getId(), loserBid.getAmount());
+                } catch (Exception e) {
+                    log.error("Failed to release balance for loser={} auction={}: {}", loserId, auction.getId(), e.getMessage());
+                }
+            });
+        }
 
         applicationEventPublisher.publishEvent(new id.ac.ui.cs.advprog.bidmart.auction.service.event.PublishWinnerRabbitEvent(this, event));
         log.info("Auction {} closed as WON, published local event for WinnerDeterminedEvent", auction.getId());
